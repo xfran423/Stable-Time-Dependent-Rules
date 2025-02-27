@@ -1,0 +1,2289 @@
+---
+title: "Retaliation markdown"
+author: "Xavier Francis"
+date: '2022-11-04'
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+## Cleaning the data, getting rid of duplicates
+
+
+
+#Load packages
+```{r}
+library(readr)
+library(dplyr)
+library(tidyr)
+library(data.table) 
+library(ggplot2)
+library(chemodiv)
+library(introdataviz)
+library(lme4)
+library(multcomp)
+library(sjPlot)
+library(emdist)
+
+
+```
+
+
+#Data cleaning chunk 1. Here and in the next several data cleaning chunks we are getting rid of duplicate observations, unknown behaviors, and dealing with undirected behaviors
+```{r}
+matrix.please<-function(x) {
+  m<-as.matrix(x[,-1])
+  rownames(m)<-x[,1]
+  m
+}
+
+#set working directory if needed
+setwd("C:/Users/Xmanf/Desktop/Ch1 TDR files")
+getwd()
+
+
+
+`2021_interactions_raw` <- read_csv("2021_interactions_raw.csv")
+raw.allbehavedata <- `2021_interactions_raw`
+
+
+
+birdIDs_capture <- read_csv("2021_birdIDs.csv") 
+birdIDs <- birdIDs_capture %>%
+  dplyr::select(mark_id3) %>%
+  filter(mark_id3!="") # all 20 birds
+
+
+
+
+
+bird.list <- sort(unique(birdIDs$mark_id3)) # change each time
+length(bird.list)
+bird.list
+length(bird.list)
+# list of all possible dyads
+dyad.list <- expand.grid(bird.list, bird.list) #head(dyad.list)
+names(dyad.list) <- c("actor", "subject")
+dyad.list <- subset(dyad.list, actor!=subject)
+dyad.list$dyadID <- paste(dyad.list$actor, dyad.list$subject, sep="-")
+# list of days with observations
+obsday.list <- as.character(unique(raw.allbehavedata$date)) #only days with observations
+obsday.list.wday <- as.data.frame(obsday.list)
+colnames(obsday.list.wday) <- "date"
+obsday.list.wday$nday <- seq(1:length(obsday.list.wday$date))
+
+```
+#Data cleaning chunk 2; "other" and "unknown" behaviors
+```{r}
+behave<-raw.allbehavedata 
+unique(behave$behavior)
+# other
+behave.other<-filter(behave, behavior=="other") %>% dplyr::select(-behavior) %>%
+  rename(behavior=other) %>%
+  dplyr::select(orderkey, sessionKEY, session_start_timeStamp, date, full_time, time, actor, subject, behavior, everything())
+behave.exl.other<-filter(behave, behavior!="other") %>% 
+  dplyr::select(-other)
+behave.goodother<-bind_rows(behave.exl.other, behave.other)
+# unknown
+behave.unknown <- filter(behave.goodother, behavior=="unknown") 
+behave.unknown$behavior[behave.unknown$behavior=="unknown"] <-"unk"
+behave.unknown <- behave.unknown %>%
+  unite(behavior, behavior, unknown, sep = "_")
+behave$behavior[behave$behavior=="unk agonistic"] <-"unk_agonistic"
+behave.exl.unk<-behave.goodother %>% filter(behavior!="unknown") %>%
+  dplyr::select(-unknown)
+behave.goodunk<-bind_rows(behave.unknown, behave.exl.unk)
+behave<-behave.goodunk
+head(behave)
+
+
+
+
+```
+#Data cleaning chunk 3; prepare cleaned df
+```{r}
+# keep only observations where the actor is in the list of bird IDs
+behave.goodID <- subset(behave, actor %in% bird.list)
+# keep only observations where the actor (found above) and the subject are both in the list of bird IDs
+behave.goodID <- subset(behave.goodID, subject %in% bird.list)
+#finds n behaviors by sessionKEY, date, time, actor, subject, behavior
+behave.key <- behave.goodID %>% 
+  dplyr::group_by(sessionKEY, date, full_time,actor, subject, behavior) %>% 
+  tally() # counts behaviors that were observed within the same minute
+#finds max n behaviors per actor by date, time, and behavior type. Return just that summary
+behave.maxkey<- behave.key %>% 
+  group_by(actor, subject, date, full_time, behavior) %>%
+  slice(which.max(n)) %>% # n.aggXaggXkey if summarise, n if tally
+  ungroup()
+head(behave.maxkey)
+#finds n disps per actor by date for summarized/trimmed data
+behaveXday <- behave.maxkey %>% 
+  group_by(actor, subject, date, full_time, behavior) %>% 
+  summarise(n=sum(n))
+head(behaveXday)
+min(behaveXday$n)
+
+
+
+
+
+unique(behaveXday$behavior)
+# behaviors in long format (1 event at a time)
+behaveXday.long <- behaveXday %>%
+  uncount(n) %>%
+  mutate(n=1)
+sum(behaveXday.long$n)
+sum(behaveXday$n)
+head(behaveXday.long)
+## DUPLICATE UNDIRECTED BEHAVIORS
+# filter the undirected behaviors 
+behaveXday.undirected <- behaveXday.long %>% 
+  filter(grepl(pattern="each other",tolower(behavior)))
+  
+behaveXday.undirected1 <-behaveXday.long %>%
+  filter( behavior=="s2s") # spar as well?
+behaveXday.undirected <- bind_rows(behaveXday.undirected,behaveXday.undirected1 )
+# duplicate undirected dataframe and change subject and actor
+behaveXday.undirected.dupl <- behaveXday.undirected %>%
+  rename(subject=actor, actor=subject) %>%
+  dplyr::select(actor, subject, everything())
+# bind both dataframes
+behaveXday.directed.comb <- bind_rows(behaveXday.undirected, behaveXday.undirected.dupl) 
+behaveXday.undir2dir <- behaveXday.directed.comb %>%
+  separate( behavior,into = c("behavior", "direction"), sep = "_") %>%
+  dplyr::select(-direction)
+unique(behaveXday.undir2dir$behavior)
+## COMBINE DATAFRAMES
+# bind to directed dataframe
+behaveXday.directed <- behaveXday.long %>% 
+  filter(!grepl(pattern="each other",tolower(behavior)) & behavior!="s2s")
+unique(behaveXday.directed$behavior)
+behaveXday.directed <- bind_rows(behaveXday.directed, behaveXday.undir2dir)
+behaveXday.directed$behavior[behaveXday.directed$behavior=="NN"] <- "nn"
+behaveXday.directed$behavior[behaveXday.directed$behavior=="alloP"] <- "allop"
+behaveXday.directed$behavior[behaveXday.directed$behavior=="allopreen"] <- "allop"
+length(behaveXday.directed$actor)
+unique(behaveXday.directed$behavior)
+12454 + 2587 # 15041
+head(behaveXday.directed)
+
+#Rename cleaned data
+'2021_interactions_cleaned' <- behaveXday.directed
+
+
+```
+
+##Begin non randomized TDR process here
+
+```{r}
+#filter out non aggression data
+'t2021_aggression_only' <- filter(`2021_interactions_cleaned`, behavior %in% c("crowd","displace"))
+
+
+#subset for time period of interest (Here we are subseting for the first stable period)
+t2021_aggression_only_ready <- t2021_aggression_only[t2021_aggression_only$date >= "2021-05-15" & t2021_aggression_only$date <= "2021-05-18	", ]
+
+
+#sequence for replacing all birdnames with numbers
+actornumID <- seq(1:19)
+subjectnumID <- seq(1:19)
+
+
+#Store alphabetcial order of birds in the data set, both for actor and subject. Check to see if both  are identical
+actor <- unique(t2021_aggression_only_ready$actor)
+subject <- unique(t2021_aggression_only_ready$actor)
+
+actor
+subject
+
+#create vector of the bird ranks that correspond to the alphabetical order of the bird ID list (ex. BOB was rank 18 and is the 2nd bird alphabetically, so the 2nd number in the rank vector is 18 
+rank <- c(1,18,15,4,7,10,3,12,6,11,17,8,9,5,19,14,2,16,13)
+
+#actor and subject ID vectors are idnetical, so both can be set to rank
+actor_rank <- rank
+subject_rank <- rank
+
+
+#bind ID to coresponding rank for actor
+preact <- cbind(actor, actor_rank)
+
+#bind to df
+unordered_actor_numbered <- merge(t2021_aggression_only_ready, preact)
+
+#bind ID to coresponding rank for subject
+presub<- cbind(subject, subject_rank)
+
+#bind to df
+unordered_both_numbered <- merge(unordered_actor_numbered, presub)
+
+
+
+#getting everything ordered correctly by time and date
+unordered_both_numbered <- unordered_both_numbered %>% dplyr::select(full_time, everything())
+
+
+both_numbered_sorted <- unordered_both_numbered %>%
+  arrange(unordered_both_numbered$date, unordered_both_numbered$full_time)
+
+#ensure that rank is numeric
+both_numbered_sorted$actor_rank <- as.numeric(both_numbered_sorted$actor_rank)
+both_numbered_sorted$subject_rank <- as.numeric(both_numbered_sorted$subject_rank)
+
+head(both_numbered_sorted)
+
+```
+
+
+#Attach observation session to df so we can permute within observation sessions
+```{r}
+head(both_numbered_sorted)
+
+
+#procedure to add obs session
+
+#store the first row as a separate df. It will be binded back on later 
+row_1_obs <- both_numbered_sorted[1,]
+
+#put events side by side. This will allow us to subtract consecutive times from one another to determine whether an event took place on a separate observation session. 
+obs_period_pt_1 <- mutate(both_numbered_sorted, actor_2 = lead(actor),
+actor_2_rank = lead(actor_rank), 
+subject_2 = lead(subject),                                   
+subject_2_rank = lead(subject_rank), 
+ full_time_2 = lead(full_time), 
+date2 = lead(date))
+
+#add empty columns for observation period and date period
+obs_period_pt_1$obs_period <- NA
+obs_period_pt_1$date_period <- NA
+
+#create ticker for loop
+q <- 1
+
+#loop to calculate observation sessions. If consecutive events were on the same day but there was a long time between events, it is determined that the 2nd event took place in a separate observation session. The ticker goes up, and is reset if events took place on different days.
+for (i in 1:nrow(obs_period_pt_1)) {ifelse(obs_period_pt_1$date[i] == obs_period_pt_1$date2[i]
+                                            & obs_period_pt_1$full_time_2[i] - obs_period_pt_1$full_time[i] >= 1800, q <- q+1, q <- q)
+  ifelse(obs_period_pt_1$date[i] != obs_period_pt_1$date2[i], q <- 1, q <- q)
+  obs_period_pt_1$obs_period [i] <- q
+  }
+
+#remove original columns and keep mutated columns. These will replace original columns
+obs_period_pt_2 <- subset(obs_period_pt_1, select = c(date2,  full_time_2, actor_2, actor_2_rank, subject_2, subject_2_rank, obs_period, date_period  ))
+
+#get rid of the bottom, which will be full of NAs, as the last event in the original data does not have anything that comes after
+obs_period_pt_3 <- slice(obs_period_pt_2, 1:(n() - 1))
+
+#rename mutated columns with original names 
+setnames(obs_period_pt_3, old = c('date2',  'full_time_2', 'actor_2', 'actor_2_rank', 'subject_2', 'subject_2_rank'), 
+         new = c('date',  'full_time', 'actor', 'actor_rank', 'subject', 'subject_rank'))
+
+#add observation period "1" onto first row that we subseted off, as the first event in the data has to take place in obs session 1
+row_1_obs$obs_period <- 1 
+row_1_obs$date_period <- NA
+
+#ensure that row 1 matches the df
+row_1_obs_ready <-  subset(row_1_obs, select = c(date,  full_time, actor, actor_rank, subject, subject_rank, obs_period, date_period  ))
+
+#bind first row and df together
+obs_period_pt_4 <- rbind(row_1_obs_ready, obs_period_pt_3)
+#add date period 
+obs_period_pt_4$date_period <- paste(obs_period_pt_4$date,obs_period_pt_4$obs_period)
+head(obs_period_pt_4)
+```
+
+
+
+
+#Separate main df into a list of dfs, each with each obs session each day for each bird
+```{r}
+
+head(obs_period_pt_4)
+
+obs <- obs_period_pt_4$date_period
+
+#create empty list to store each bird each day each obs
+practdrlist <- list()
+
+dater <- unique(obs)
+datex <- c(1: length(unique(obs)))
+actorer <- actor
+actex <- c(1:length(actor))
+
+
+#separate data into list of each obs session each day for each bird
+for(i in datex) { 
+  for (g in actex){
+  output <- filter(obs_period_pt_4, obs_period_pt_4$date_period == dater[i] & (subject == actorer[g] | actor == actorer[g]))
+   if (nrow(output) < 1) {output [ nrow(output) + 1 , ] <- NA
+    } 
+  output <- mutate(output, counter = actorer[g])
+      practdrlist[[paste0("list", dater[i], actorer[g])]] <- output}}
+
+
+
+
+#arrange df by date and time
+practdrlist_ordered <- lapply(practdrlist, function(x) arrange(x, date, full_time))
+
+
+
+```
+#Put events side by side
+```{r}
+
+#modified each data frame to put consecutive events side by side
+
+testall <- lapply(practdrlist_ordered, function(x) mutate(x, actor_2 = lead(actor), subject_2 = lead(subject), full_time_2 = lead(full_time), date2 = lead(date))) 
+
+
+
+
+
+```
+
+#Observed Retaliation
+```{r}
+#successfully picked out retaliation rule while keeping all dataframes in a list 
+#loop to set conditionals to pick out retaliation
+
+#counter corresponds with which birds dataframe I am looking at and is used to control for false positives 
+#for example, if retaliation is detected for a bird A whos specific dataframe I am not looking at (im viewing bird Bs df) , this may be a false positive, as that bird A's interactions are not all listed in the dataframe of another bird B. In other words, bird A may have done something else to another bird (C, D, F etc.) that is not listed, as it would be only listed in that specific birds dataframe, that being Bird A's own dataframe
+
+dateact1 <-  c(1:length(testall))
+
+
+
+for(i in dateact1) {
+  testall[[i]] <- mutate(testall[[i]], 
+                         initiated = ifelse(subject == counter, "yes","no"), 
+                         rule_followed = ifelse(actor == subject_2 
+                                                & subject == actor_2 
+                                                & full_time_2 - full_time <= 336 
+                                                & full_time_2 - full_time > 0
+                                                & date2 == date
+                                                & subject == counter
+                                                & actor_2 == counter,
+                                                "yes","no"))
+} 
+
+
+
+#combine dataframes into one huge dataframe
+testhuge <- bind_rows(testall, .id = "column_label")
+
+#sort by time and date
+testhugesorted <- testhuge %>%
+  arrange(testhuge$date, testhuge$full_time)
+
+
+
+
+#Remove duplicate events, events that have been represented twice, and events that could not confidently be counted as the start of retaliation
+testhugesorted_no_dupr <- subset(testhugesorted, initiated != "no") 
+
+#subset for desired columns
+retaliation_no_dupr <- subset(testhugesorted_no_dupr, select = c(date, full_time, actor, subject, 
+                                                               counter, actor_2, subject_2, full_time_2, date2, 
+                                                               initiated, rule_followed))
+head(retaliation_no_dupr)
+
+
+#determine how many time rule was follows
+retal_real <- length(which(retaliation_no_dupr$rule_followed == "yes"))
+
+retal_real.frame <- data.frame(retal_real)
+
+
+retal_real.frame
+
+#create df of only rule follows
+retal_doner_all_yes <- filter(retaliation_no_dupr, rule_followed == "yes")
+
+```
+#Individual rule following
+```{r}
+#test for individual use of rule. How many times did each bird use rule
+unique(retal_doner_all_yes$actor_2)
+length(unique(retal_doner_all_yes$actor_2)
+)
+
+summary.retal.individ_2021 <- retal_doner_all_yes %>% group_by(actor_2) %>%
+  dplyr::summarize (
+    count =n())
+
+summary.retal.individ_2021
+
+
+
+
+#compare to raw dataset to see if any birds didnt use rule at all
+unique(t2021_aggression_only_ready$actor)
+unique(t2021_aggression_only_ready$subject)
+
+
+retal_nofollow <- setdiff(unique(t2021_aggression_only_ready$actor), unique(retal_doner_all_yes$actor_2)
+ )
+
+#Calculate Richness score for rule following
+#DO FIRST BEFORE ADDING ZEROS AND DONT DO AGAIN WITHOUT RUNNING ABOVE CODE
+retal_richness <- length(summary.retal.individ_2021$actor_2)/length((unique(t2021_aggression_only_ready$actor)
+))
+
+retal_richness
+
+#add in 0s for individuals who did not follow rule for plotting purposes
+retal_zeros <- rep(c(0),times=c(length(retal_nofollow)))
+
+retal_nofollow_zeros<- data.frame(retal_nofollow,retal_zeros) 
+
+colnames(retal_nofollow_zeros) <- c("actor_2","count")
+
+summary.retal.individ_2021 <- rbind(summary.retal.individ_2021, retal_nofollow_zeros)
+
+
+
+
+# Plot
+individ_retal_plot_2021 <- ggplot(summary.retal.individ_2021, aes(x = actor_2, y = count )) + 
+  geom_bar(stat = "identity", width = 0.6) + # Consistent bar width
+scale_y_continuous( breaks = seq(0, 60, 2)) + 
+  theme_minimal()  +
+  theme(
+    axis.text.x = element_text(angle = 90, vjust=0.5),
+    axis.title.x = element_text( face = "bold",  margin = margin(t = 15)),  # X-axis title
+    axis.title.y = element_text( face = "bold",  margin = margin(r = 15)),
+    ) +
+  labs(
+    x = "Parakeet ID",  # Add your custom x-axis title here
+    y = "Count of rule follows"   # Add your custom y-axis title here
+  )
+individ_retal_plot_2021
+
+#Calculate eveness metric
+retal_for_even <- subset(summary.retal.individ_2021, select = c(count))
+
+final_retal_for_even <- as.data.frame(t(retal_for_even))
+
+retal_even_value <-calcDiv(final_retal_for_even, type = "PielouEven", q = 1) 
+
+retal_even_value
+
+
+
+
+
+```
+
+
+
+
+
+
+#Rule Speed
+```{r}
+#######################################################################################################
+
+#follows similar procedure as calculating the count of rule follows, with some differences in the rule detection loop and the structure
+
+#put df side by side
+testall_rule_time <- lapply(practdrlist_ordered, function(x) mutate(x, actor_2 = lead(actor), subject_2 = lead(subject), full_time_2 = lead(full_time), date2 = lead(date)))
+
+#test for length of retal in seconds
+for(i in dateact1) {
+  testall_rule_time[[i]] <- mutate(testall_rule_time[[i]], 
+                         initiated = ifelse(subject == counter, "yes","no"), 
+                         rule_followed = ifelse(actor == subject_2 
+                                                & subject == actor_2 
+                                                & date2 == date
+                                                & subject == counter
+                                                & actor_2 == counter
+                                                & full_time_2 - full_time > 0,
+                                                "yes","no"),
+                         time_to_retal = full_time_2 - full_time)
+} 
+
+
+#bind list of dfs into one df
+testhuge_rule_time <- bind_rows(testall_rule_time, .id = "column_label")
+
+#sort by time and date
+testhugesorted_rule_time <- testhuge_rule_time %>%
+  arrange(testhuge_rule_time$date, testhuge_rule_time$full_time)
+
+
+
+#remove any duplicate or double counted events 
+testhugesorted_no_dupr_rule_time <- subset(testhugesorted_rule_time, initiated != "no") 
+
+#subset for columns of interest
+retaliation_no_dupr_rule_time <- subset(testhugesorted_no_dupr_rule_time, select = c(date, full_time, actor, subject,  
+                                                               counter, actor_2, subject_2, full_time_2, date2, 
+                                                               initiated, rule_followed, time_to_retal,date_period))
+
+#get df where rule was followed
+retal_length <- subset(retaliation_no_dupr_rule_time, rule_followed != "no")
+
+#subset for columns of interest
+retal_length_ready_2021 <- subset( retal_length, select = c(actor, subject, actor_2, subject_2, time_to_retal,date_period))
+head(retal_length_ready_2021)
+
+
+#obtain value for number of times rule was followed
+retal_length_real <- length(retal_length_ready_2021$time_to_retal)
+
+
+#summarize the speed of rule follows. Here we are checking whether the speed of the rule in question tends to be clustered
+summary.retal <- retal_length_ready_2021 %>% group_by(time_to_retal) %>% 
+  dplyr::summarize(
+    count = n())
+
+summary.retal
+
+
+#quick glimpses of the distribution of rule speeds
+ggplot(retal_length_ready_2021, aes(x=time_to_retal)) + 
+  geom_histogram(aes(y=..density..),      
+                 binwidth= 50,
+                 colour="black", fill="white") + 
+  geom_density()
+
+
+
+ggplot(retal_length_ready_2021, aes(x=time_to_retal)) + 
+  geom_histogram(aes(y=..density..),      
+                 binwidth=10,
+                 colour="black", fill="white") + 
+  geom_density() +   scale_x_continuous(name = "length in s of retal events", limits = c(0,3000)) 
+
+
+
+
+#here im calculating the mean time between events when looking at interactions focal birds were involved in for all the birds 
+
+time_between_events <- subset(testhugesorted_rule_time, select = c(time_to_retal))
+time_between_events$time_to_retal <- as.numeric(time_between_events$time_to_retal)
+
+mean_time_between_events <- mean(time_between_events$time_to_retal, na.rm=TRUE)
+
+
+ggplot(time_between_events, aes(x=time_to_retal)) + 
+  geom_histogram(aes(y=..density..),      
+                 binwidth=10,
+                 colour="black", fill="white") + 
+  geom_density() +   scale_x_continuous(name = "length in s of all events", limits = c(0,3000)) 
+
+
+
+```
+
+
+##Randomization/permutation process starts here
+```{r}
+
+#start with "both_numbered_sorted" as my dataset
+
+
+head(both_numbered_sorted)
+
+
+#procedure to randomize within obs sesh
+#store first  row
+row_1_obs <- both_numbered_sorted[1,]
+
+#put events side by side. This will allow us to subtract consecutive times from one another to determine whether an event took place on a separate observation session. 
+obs_period_pt_1 <- mutate(both_numbered_sorted, actor_2 = lead(actor),
+actor_2_rank = lead(actor_rank), 
+subject_2 = lead(subject),                                   
+subject_2_rank = lead(subject_rank), 
+ full_time_2 = lead(full_time), 
+date2 = lead(date))
+
+#add empty columns for observation period and date period
+obs_period_pt_1$obs_period <- NA
+obs_period_pt_1$date_period <- NA
+
+#create ticker for loop
+q <- 1
+
+#loop to calculate observation sessions. If consecutive events were on the same day but there was a long time between events, it is determined that the 2nd event took place in a separate observation session. The ticker goes up, and is reset if events took place on different days.
+for (i in 1:nrow(obs_period_pt_1)) {ifelse(obs_period_pt_1$date[i] == obs_period_pt_1$date2[i]
+                                            & obs_period_pt_1$full_time_2[i] - obs_period_pt_1$full_time[i] >= 1800, q <- q+1, q <- q)
+  ifelse(obs_period_pt_1$date[i] != obs_period_pt_1$date2[i], q <- 1, q <- q)
+  obs_period_pt_1$obs_period [i] <- q
+  }
+
+#remove original columns and keep mutated columns. These will replace original columns
+obs_period_pt_2 <- subset(obs_period_pt_1, select = c(date2,  full_time_2, actor_2, actor_2_rank, subject_2, subject_2_rank, obs_period, date_period  ))
+
+#get rid of the bottom, which will be full of NAs, as the last event in the original data does not have anything that comes after
+obs_period_pt_3 <- slice(obs_period_pt_2, 1:(n() - 1))
+
+#rename mutated columns with original names 
+setnames(obs_period_pt_3, old = c('date2',  'full_time_2', 'actor_2', 'actor_2_rank', 'subject_2', 'subject_2_rank'), 
+         new = c('date',  'full_time', 'actor', 'actor_rank', 'subject', 'subject_rank'))
+
+#add observation period "1" onto first row that we subseted off, as the first event in the data has to take place in obs session 1
+row_1_obs$obs_period <- 1 
+row_1_obs$date_period <- NA
+
+#ensure that row 1 matches the df
+row_1_obs_ready <-  subset(row_1_obs, select = c(date,  full_time, actor, actor_rank, subject, subject_rank, obs_period, date_period  ))
+
+#bind first row and df together
+obs_period_pt_4 <- rbind(row_1_obs_ready, obs_period_pt_3)
+#add date period 
+obs_period_pt_4$date_period <- paste(obs_period_pt_4$date,obs_period_pt_4$obs_period)
+
+
+
+obs <- obs_period_pt_4$date_period
+#separate data into a list with each df=a date period so we can randomize within days and obs periods
+
+datelist <- list()
+dater <- unique(obs)
+datex <- c(1: length(unique(obs)))
+
+#loop to create a separate dataframe for of each obs session each day 
+#Each dataframe is stored within a list to make the dataframes easy to work with
+#We wish to conserve our permutation randomization within days and, more specifically, within observation sessions
+for(i in datex) { 
+  output <- filter(obs_period_pt_4, obs_period_pt_4$date_period == dater[i] )
+   if (nrow(output) < 1) {output [ nrow(output) + 1 , ] <- NA
+    } 
+      datelist[[paste0("list", dater[i])]] <- output}
+
+
+
+
+#run ids should be 1 through however many times you want to run through the permutation. Here 1000 times
+runIDs <- seq(1,1000)
+
+#create an empty masterframe to be filled with each run of the permutation
+masterframe_retaliation.df <- data.frame(runIDs = character(),
+                             actor = character(),
+                             subject = character(),
+                             date = character(),
+                             full_time = integer(),
+                             counter = character(),
+                             actor_2 = character(),
+                             subject_2 = character(),
+                             full_time_2 = integer(),
+                             date2 = character(),
+                             initiated = character(),
+                             rule_followed = character(),
+                             stringsAsFactors=FALSE)
+nruns <- 1000
+#progress bar so we can keep track of progress
+pb = txtProgressBar(min=0, max = nruns, style = 3)
+
+#seed 10 for no time limit
+#seed 46 for 8 sec
+#seed 277 for 85 sec
+#seed = 925 for 336 sec
+
+#set seed
+set.seed(925)
+#forloop starts here'
+for (r in 1:length(runIDs)) { #r = 1 is a test you can uncomment to see if it works before running it 1000 times
+#r = 1
+  run <- r
+    setTxtProgressBar(pb, r) #update progress bar
+  loop.run <- paste("run", run) 
+  loop.run
+  #for example, if r = 1, looprun will say run 1 which will allow you to keep each run's data straight
+  
+    
+
+  
+  #renamed data
+  loop.datalist <- datelist
+  head(loop.datalist[[3]])
+  
+  
+  xorder <- c()
+  listlength <- as.numeric(length(loop.datalist))
+  datex2 <- 1:listlength
+  full_time_list <-c()
+  loop.data.randomized.time.added <- c()
+  #get rid of anything thats not actor and receiver (we will bind back on the date and time #later anyways to preserve
+  #their order)
+  
+
+
+   for(i in datex2) {
+     #store time
+     full_time_list[[i]] <- subset(loop.datalist[[i]], select = c(full_time))
+     #remove time from each df in the list. randomizing the order of time wouldnt make sense
+     loop.datalist[[i]] <- subset(loop.datalist[[i]], select = -c(full_time))
+
+      #create a randomized sequence of numbers to bind to the subset data (ex. 2,6,1,3,5,4)
+      #sort the data frame to put the randomized numbers in order from 1 to whatever and voila, the order of events has been randomized (ex.  from above 1,2,3,4,5,6)
+    xorder[[i]] <- data.frame(xorder = sample(1:length(loop.datalist[[i]]$actor),
+                                              length(loop.datalist[[i]]$actor)))
+    #bind random order to df
+    loop.datalist[[i]] <- mutate(loop.datalist[[i]], 
+                                 xorderx = xorder[[i]]$xorder)
+    #put randomized order of numbers in order to randomize rows in the dataset
+    loop.datalist[[i]] <-
+      loop.datalist[[i]][order(loop.datalist[[i]]$xorderx),]
+    #bind time back on
+    loop.data.randomized.time.added[[i]] <- bind_cols(loop.datalist[[i]], full_time_list[[i]])
+    loop.data.randomized.time.added[[i]] <- subset(loop.data.randomized.time.added[[i]], select = -c(xorderx))
+
+   }
+#rename df
+  practdrlist <- loop.data.randomized.time.added
+  
+  
+#separate data into list of each obs session each day for each bird
+actorer <- actor
+actex <- c(1:length(actor))
+dater <- unique(obs)
+practdrlist_split_by_bird <- c()
+
+for(i in datex2) {
+for (g in actex) {output <- subset(practdrlist[[i]], actor == actorer[g] |  subject == actorer[g])
+#if one of the dfs in the list is empty, add NA
+   if (nrow(output) < 1) {output [ nrow(output) + 1 , ] <- NA
+    } 
+  output <- mutate(output, counter = actorer[g])
+  practdrlist_split_by_bird[[paste0("list", dater[i], actorer[g])]] <- output
+}}
+
+
+#sort by date and time
+practdrlist_ordered <- lapply(practdrlist_split_by_bird, function(x) arrange(x, date, full_time))
+
+
+
+
+#modified each data frame to put consecutive events side by side
+testall <- lapply(practdrlist_ordered, function(x) mutate(x, actor_2 = lead(actor), subject_2 = lead(subject), full_time_2 = lead(full_time), date2 = lead(date))) 
+
+head(testall[[1]])
+
+
+
+#loop to set conditionals to pick out retaliation
+
+#counter corresponds with which birds dataframe I am looking at and is used to control for false positives 
+#for example, if retaliation is detected for a bird A whos specific dataframe I am not looking at (im viewing bird Bs df) , this may be a false positive, as that bird A's interactions are not all listed in the dataframe of another bird B. In other words, bird A may have done something else to another bird (C, D, F etc.) that is not listed, as it would be only listed in that specific birds dataframe, that being Bird A's own dataframe
+
+for(i in dateact1) {
+  testall[[i]] <- mutate(testall[[i]], 
+                         initiated = ifelse(subject == counter, "yes","no"), 
+                         rule_followed = ifelse(actor == subject_2 
+                                                & subject == actor_2 
+                                                & full_time_2 - full_time <= 336 
+                                                & full_time_2 - full_time > 0
+                                                & date2 == date
+                                                & subject == counter
+                                                & actor_2 == counter,
+                                                "yes","no"))
+} 
+
+
+head(testall[[1]])
+
+
+
+
+
+
+
+#combine dataframes into one huge dataframe
+testhuge <- bind_rows(testall, .id = "column_label")
+
+#sort by time and date
+testhugesorted <- testhuge %>%
+  arrange(testhuge$date, testhuge$full_time)
+
+
+
+#Remove duplicate events, events that have been represented twice, and events that could not confidently be counted as the start of retaliation
+testhugesorted_no_dup <- subset(testhugesorted, initiated != "no") 
+
+#subset for columns of interest
+retaliation_no_dup <- subset(testhugesorted_no_dup, select = c(date, full_time, actor, subject, 
+                                                               counter, actor_2, subject_2, full_time_2, date2, 
+                                                               initiated, rule_followed))
+
+head(retaliation_no_dup)
+
+
+
+
+  
+  #end of retaliation process
+  #end of rule code
+  
+  
+  
+  #bind vector of run IDs for each run to the dataframe so that you can have a numeric run #id next to each data point
+  #that coresponds with that run which will allow you to sort/put them in ascending order later
+ runIDs <- rep(loop.run, length(retaliation_no_dup$actor))
+ 
+  retaliation_complete <- cbind(runIDs, retaliation_no_dup)
+  
+  
+#put each runs data into teh masterframe
+  masterframe_retaliation.df <- rbind(masterframe_retaliation.df, retaliation_complete)
+  
+}
+
+#write.csv(masterframe_retaliation.df, "C:/Users/Xmanf/Desktop/Ch1 TDR files/retal2021countmaster_336sec.csv")
+```
+
+#Compare observed rule follows to reference model
+```{r}
+#masterframe_retaliation.df <- read.csv("C:/Users/Xmanf/Desktop/Ch1 TDR files/retal2021countmaster_336sec.csv", header=TRUE, stringsAsFactors=FALSE)
+
+
+
+
+
+#put run #s in an ascending vector
+cum_run_IDS <- unique(masterframe_retaliation.df$runIDs)
+
+#create empty vector for number of time the rules were followed to be stored
+random_times_retaliation_followed <- c()
+
+
+#put the number of times the rule was followed into the vector for analysis 
+for (j in cum_run_IDS) {
+  len_of_retaliations <- length(which(masterframe_retaliation.df$rule_followed == "yes" & 
+                                        masterframe_retaliation.df$runIDs == j))
+
+random_times_retaliation_followed <- c(random_times_retaliation_followed, len_of_retaliations)
+}
+
+#turn vector into a dataframe for analysis
+rand_retal_.frame <- data.frame(random_times_retaliation_followed)
+
+#plot (the x intercept is the # of time a rule was used in the real data, found with 
+#"retal_real <- length(which(retaliation_no_dupr$rule_followed == "yes"))
+
+#visualize observed rule follow vs reference distribution
+retal_2021_count_plot <- ggplot(rand_retal_.frame, aes(x=random_times_retaliation_followed)) + 
+  geom_histogram(aes(y=..density..),      
+                 binwidth=1,
+                 colour="black", fill="grey") +
+  geom_density(lwd = 1, linetype = 1) + theme_minimal() +
+  geom_vline(xintercept = retal_real, colour = "red", size = 2)  + 
+  theme(axis.text = element_text(size=25),
+        axis.title = element_text(size = 25, face = "bold")) +
+  scale_x_continuous(name = "Count of Retaliation events", breaks=seq(0, 20, 5)) +  
+     coord_cartesian(xlim = c(0, 20), ylim = c(0,.4)) +
+scale_y_continuous( breaks = seq(0, .4, .1)) +
+  labs(
+       y = "Density")
+
+retal_2021_count_plot
+
+#calculate p value (proportion of randomized reference values that are more "extreme" than the observed count of rule follows)
+retal_tally2021 <-length(which(rand_retal_.frame$random_times_retaliation_followed < retal_real))
+
+pretal_tally2021 <-   1 - retal_tally2021/length(rand_retal_.frame$random_times_retaliation_followed)
+
+#p = 0.343 for no time restriction as often 
+#p = 0 for an 8 second restriction more often 
+#p = .004 for 85 sec more often 
+#p = .174 for 336 sec as often
+
+```
+
+#Randomize rule speed
+```{r}
+#randomize time between initiation and response between events
+#ALWAYS RUN OBSERVED TIME CODE FIRST
+testall_rule_time_ready_for_rand <- lapply(practdrlist_ordered, function(x) mutate(x, actor_2 = lead(actor), subject_2 = lead(subject), full_time_2 = lead(full_time), date2 = lead(date)))
+
+#Loop to detect instances and speed of rule use for the rule in question 
+for(i in dateact1) {
+  testall_rule_time_ready_for_rand[[i]] <- mutate(testall_rule_time_ready_for_rand[[i]], 
+                         initiated = ifelse(subject == counter, "yes","no"), 
+                         rule_followed = ifelse(actor == subject_2 
+                                                & subject == actor_2 
+                                                & date2 == date
+                                                & subject == counter
+                                                & actor_2 == counter
+                                                & full_time_2 - full_time > 0,
+                                                "yes","no"),
+                         time_to_retal = full_time_2 - full_time)
+} 
+
+
+#Bind list of dfs into one df
+testall_rule_time_ready_for_rand_binded <- bind_rows(testall_rule_time_ready_for_rand)
+
+
+
+
+#mark df with priority of which to favor when getting rid of. Unlike in the procedure for rule detection and event order permutations, here we only want to get rid of duplicate/double counted event sequences, not events that may not initiate retaliation. Our subsequent permutations involve shuffling the time between events, regardless of if the sequences of events represent a rule follow or not, and so preserving the data detailing the time between non retaliation events is essential.
+testall_rule_time_ready_for_rand_binded_marked <- mutate(testall_rule_time_ready_for_rand_binded, priority = ifelse(rule_followed == "yes", 1, 2))
+#sort by priority
+testall_rule_time_ready_for_rand_binded_marked <- arrange(testall_rule_time_ready_for_rand_binded_marked, priority)
+
+#Remove duplicate and double counted sequences
+testall_rule_time_ready_for_rand_binded_marked <- distinct(testall_rule_time_ready_for_rand_binded_marked, date, full_time, actor, actor_rank, subject, subject_rank, obs_period, date_period, actor_2, subject_2, full_time_2, date2, time_to_retal, .keep_all= TRUE) 
+
+
+#remove instances of rule use whos speed were calculated to be 0. In this case we cant be certain of which event actually came first
+testall_rule_time_ready_for_rand_binded_marked <- filter(testall_rule_time_ready_for_rand_binded_marked, time_to_retal != 0)
+
+
+date_x <- testall_rule_time_ready_for_rand_binded_marked$date
+obs <- testall_rule_time_ready_for_rand_binded_marked$date_period
+
+
+testall_rule_time_ready_for_rand_list <- list()
+dater <- unique(obs)
+datex <- c(1: length(unique(obs)))
+
+#loop to create a separate dataframe for of each obs session each day 
+#Each dataframe is stored within a list to make the dataframes easy to work with
+#We wish to conserve our permutation randomization within days and, more specifically, within observation sessions
+for(i in datex) { 
+  output <- filter(testall_rule_time_ready_for_rand_binded_marked, testall_rule_time_ready_for_rand_binded_marked$date_period == dater[i] )
+   if (nrow(output) < 1) {output [ nrow(output) + 1 , ] <- NA
+    } 
+      testall_rule_time_ready_for_rand_list[[paste0("list", dater[i])]] <- output}
+
+
+
+
+
+nruns <- 1000
+
+#create progress bar
+pb = txtProgressBar(min=0, max = nruns, style = 3)
+
+#run ids should be 1 through however many times you want to run through the permutation
+runIDs <- seq(1,1000)
+
+#create an empty masterframe to be filled with each run of the permutation
+masterframe_retaliation.df_time_2021 <- data.frame(runIDs = character(),
+                             actor = character(),
+                             subject = character(),
+                             date = character(),
+                             full_time = integer(),
+                             counter = character(),
+                             actor_2 = character(),
+                             subject_2 = character(),
+                             full_time_2 = integer(),
+                             date2 = character(),
+                             initiated = character(),
+                             rule_followed = character(),
+                             time_to_retal = integer(),
+                            date_period = character(),
+                             stringsAsFactors=FALSE)
+
+#set seed
+set.seed(10)
+#forloop starts here'
+for (r in 1:length(runIDs)) { #r = 1 is a test you can uncomment to see if it works before #running it 1000 times
+#r = 1
+  run <- r
+      setTxtProgressBar(pb, r) #update progress bar
+  loop.run <- paste("run", run) 
+  loop.run
+  #for example, if r = 1, looprun will say run 1 which will allow you to keep each run's #data straight
+  
+    
+
+  
+  #renamed data
+  loop.datalist <- testall_rule_time_ready_for_rand_list
+    head(loop.datalist[[3]])
+    xorder <- c()
+  listlength <- as.numeric(length(loop.datalist))
+datex2 <- 1:listlength
+  full_time_to_rule <-c()
+  loop.data.randomized.time_to_rule.added <- c()
+    
+    
+
+  for(i in datex2) {
+         #store time
+     full_time_to_rule[[i]] <- subset(loop.datalist[[i]], select = c(time_to_retal))     
+     #remove time from each df in the list. randomizing the order of time wouldnt make sense
+     loop.datalist[[i]] <- subset(loop.datalist[[i]], select = -c(time_to_retal))
+      #create a randomized sequence of numbers to bind to the subset data (ex. 2,6,1,3,5,4)
+      #sort the data frame to put the randomized numbers in order from 1 to whatever and voila, the time between events (speed) has been  randomized (ex. from above 1,2,3,4,5,6)
+    xorder[[i]] <- data.frame(xorder = sample(1:length(full_time_to_rule[[i]]$time_to_retal),
+                                              length(full_time_to_rule[[i]]$time_to_retal)))
+    #bind random order to df
+    full_time_to_rule[[i]] <- mutate(full_time_to_rule[[i]], 
+                                 xorderx = xorder[[i]]$xorder)
+    #put randomized order of numbers in order to randomize speed in the dataset
+    full_time_to_rule[[i]] <-
+      full_time_to_rule[[i]][order(full_time_to_rule[[i]]$xorderx),]
+    #bind time back on
+    loop.data.randomized.time_to_rule.added[[i]] <- bind_cols(loop.datalist[[i]], full_time_to_rule[[i]])
+    loop.data.randomized.time_to_rule.added[[i]] <- subset(loop.data.randomized.time_to_rule.added[[i]], select = -c(xorderx))
+
+   }
+  
+
+  
+  
+  
+  
+  
+  
+  
+
+#combine dataframes into one huge dataframe
+loop.datalist_time_randomized_binded_tested_retal_2021 <- bind_rows(loop.data.randomized.time_to_rule.added, .id = "column_label")
+
+
+ 
+
+#sort by time and date
+loop.datalist_time_randomized_binded_tested_retal_2021 <- loop.datalist_time_randomized_binded_tested_retal_2021 %>%
+  arrange(loop.datalist_time_randomized_binded_tested_retal_2021$date, loop.datalist_time_randomized_binded_tested_retal_2021$full_time)
+
+
+
+
+
+
+#Remove duplicate events, events that have been represented twice, and events that could not confidently be counted as the start of retaliation
+
+testhugesorted_no_dup_rand_time <- subset(loop.datalist_time_randomized_binded_tested_retal_2021, initiated != "no") 
+
+retaliation_no_dup_rand_time <- subset(testhugesorted_no_dup_rand_time, select = c(date, full_time, actor, subject, 
+                                                               counter, actor_2, subject_2, full_time_2, date2, 
+                                                               initiated,  rule_followed,time_to_retal, date_period))
+
+
+
+
+
+  
+  #end of retaliation process
+  #end of rule code
+  
+  
+  
+  #bind vector of run IDs for each run to the dataframe so that you can have a numeric run #id next to each data point
+  #that coresponds with that run which will allow you to sort/put them in ascending order later
+ runIDs <- rep(loop.run, length(retaliation_no_dup_rand_time$actor))
+ 
+  retaliation_complete_rand_time_2021 <- cbind(runIDs, retaliation_no_dup_rand_time)
+  
+  
+#put each runs data into teh masterframe
+  masterframe_retaliation.df_time_2021 <- rbind(masterframe_retaliation.df_time_2021, retaliation_complete_rand_time_2021)
+  
+}
+
+
+
+
+
+#write.csv(masterframe_retaliation.df_time_2021, "C:/Users/Xmanf/Desktop/Ch1 TDR files/retal2021timemaster.csv")
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#Compare observed speed to random
+
+```{r}
+
+#masterframe_retaliation.df_time_2021 <- read.csv("C:/Users/Xmanf/Desktop/Ch1 TDR files/retal2021timemaster.csv")
+
+
+head(masterframe_retaliation.df_time_2021)
+
+#subset masterframe so that only rule follows are included
+masterframe_retaliation.df_time_2021_only_follows <- subset(masterframe_retaliation.df_time_2021, rule_followed == "yes" )
+
+#isolate time it takes to carry out rule...
+masterframe_retaliation_time_sub.df <- subset( masterframe_retaliation.df_time_2021_only_follows, select = c(actor, subject, actor_2,subject_2, time_to_retal,date_period))
+head(masterframe_retaliation_time_sub.df)
+
+
+
+#add data label for the randomized rule speed
+masterframe_retaliation_time_ready.df <- mutate(masterframe_retaliation_time_sub.df, data_type = "randomized")
+
+#ensure that time is numeric
+masterframe_retaliation_time_ready.df$time_to_retal <- as.numeric(masterframe_retaliation_time_ready.df$time_to_retal)
+
+
+head(retal_length_ready_2021)
+
+#add data label for the observed rule speed
+retal_length_ready_2021_label <- mutate(retal_length_ready_2021, data_type = "observed")
+
+
+#combine df for observed rule speed and randomized rule speed into one df
+retal_length_ready_2021_comb <- rbind(masterframe_retaliation_time_ready.df, retal_length_ready_2021_label )
+unique(retal_length_ready_2021_comb$data_type)
+
+
+
+
+#provide label for rule in question
+retal_length_ready_2021_comb <- mutate(retal_length_ready_2021_comb, rule = "Retaliation")
+
+
+#make sure that rule speed is numeric
+retal_length_ready_2021_comb$time_to_retal <- as.numeric(retal_length_ready_2021_comb$time_to_retal)
+
+
+#observed vs randomized raw plot. quick look at how the distriubtuions compare
+ggplot(retal_length_ready_2021_comb, aes(x=time_to_retal, fill = data_type)) + 
+  geom_histogram(aes(y=..density..),      
+                 binwidth=1) +#,
+                 #colour="black", fill="white") + 
+  geom_density() +   scale_x_continuous(name = "length in s of retal events random vs observed", limits = c(0,300)) 
+
+
+#obtain mode of observed and randomized rule speed for plotting purposes
+#getmode <- function(v) {
+   #uniqv <- unique(v)
+   #uniqv[which.max(tabulate(match(v, uniqv)))]
+#}
+
+#retal_2021_mode_obs <- getmode(retal_length_ready_2021_label$time_to_retal)
+
+#retal_2021_mode_rand <-getmode(masterframe_retaliation_time_ready.df$time_to_retal)
+
+#bind mode to dfs
+#retal_2021_mode <-  rbind(retal_2021_mode_obs,retal_2021_mode_rand)
+
+#test for homogeneity of variance
+leveneTest(time_to_retal ~ data_type, data = retal_length_ready_2021_comb)
+
+
+#split violin plot of observed vs randomized rule speed
+retal_violin_plot <- ggplot(retal_length_ready_2021_comb, aes(rule, time_to_retal, fill = data_type))  +
+  introdataviz::geom_split_violin(alpha= .9, trim = TRUE, show.legend = FALSE) +
+  geom_boxplot(width = .2, alpha = .2, fatten = 2, show.legend = FALSE, outlier.shape = NA) +
+  #stat_summary(fun = "mean", geom = "point",  colour = "darkblue", show.legend = F, 
+               #position = position_dodge(.200))  +
+  scale_x_discrete(name = "Time Dependent Rule") +  
+     coord_cartesian(ylim = c(0, 1000)) +
+  scale_y_continuous(name = "Speed of Retaliation events (s)",
+                     breaks = seq(0, 1000, 200) 
+                     ) + scale_fill_manual(values=c("red","gray")) +
+  theme_minimal(base_size = 20)  + theme(axis.text.y = element_text(size=25), axis.title= element_blank(), axis.text.x = element_blank())
+
+
+retal_2021_time_plot <- retal_violin_plot
+
+retal_2021_time_plot
+
+#calculate the means for observed and randomized rule speed
+mean_obs_rand_retaliation_2021 <- retal_length_ready_2021_comb %>% group_by(data_type) %>%
+  dplyr::summarize (mean(time_to_retal))
+
+mean_obs_rand_retaliation_2021
+#obs 225.5625
+#rand 379.3489
+
+
+#linear mixed model to compare means of observed vs randomized rule speed
+m1testretal_2021 <- glmer(time_to_retal ~ data_type  + (1 | date_period)   , data = retal_length_ready_2021_comb ,   control = glmerControl(optimizer = "bobyqa", optCtrl = list(maxfun=2e5)), family = Gamma(link = "log"))
+summary(m1testretal_2021)
+#p = 0.0506
+#UPDATE THE MANUSCRIPT DRAFT
+
+
+
+
+#calculate confidence intervals  
+ confint_retal_2021 <- round(confint(m1testretal_2021, method = "Wald", level = 0.95), 3)
+confint_retal_2021
+#Intercept 4.7620267 to 6.291963
+#data_typerandomized -0.3605043 to 1.101225
+
+#tukey
+summary(glht(m1testretal_2021, linfct = mcp(data_type="Tukey")), test = adjusted("none"))
+
+#Find R2 values
+tab_model(m1testretal_2021)
+
+
+ 
+```
+#Earth Movers Distance Calculation
+```{r}
+#ensure that observed rule speed is numeric
+retal_length_ready_2021$time_to_retal <- as.numeric(retal_length_ready_2021$time_to_retal)
+
+
+head(retal_length_ready_2021)
+
+#convert to a density matrix
+#summarize the count of various rule speeds
+summary.retal_length_ready_2021 <- retal_length_ready_2021 %>% group_by(time_to_retal) %>%
+  dplyr::summarize (
+    count =n())
+
+summary.retal_length_ready_2021
+
+#Add density column
+summary.retal_length_ready_2021_density <- mutate(summary.retal_length_ready_2021, density = count/sum(count))
+#remove count column
+summary.retal_length_ready_2021_density_no_count <- subset(summary.retal_length_ready_2021_density, select = -c(count))
+#reorder the columns
+summary.retal_length_ready_2021_density_no_count_reordered <- summary.retal_length_ready_2021_density_no_count[, c(2, 1)]
+head(summary.retal_length_ready_2021_density_no_count_reordered)
+#convert to matrix
+summary.retal_length_ready_2021_density_no_count_reordered_mat <- as.matrix(summary.retal_length_ready_2021_density_no_count_reordered)
+
+
+
+masterframe_length_ready <- subset(masterframe_retaliation_time_sub.df, select = c(time_to_retal))
+head(masterframe_length_ready)
+#ensure that randomized rule follows are numeric
+masterframe_length_ready$time_to_retal <- as.numeric(masterframe_length_ready$time_to_retal)
+
+
+
+
+#convert to a density matrix
+#summarize the count of avrious rule speeds
+summary.masterframe_length_ready <- masterframe_length_ready %>% group_by(time_to_retal) %>%
+  dplyr::summarize (
+    count =n())
+
+summary.masterframe_length_ready
+
+#Adddensity column
+summary.masterframe_length_ready_density <- mutate(summary.masterframe_length_ready, density = count/sum(count))
+#remove count column
+summary.masterframe_length_ready_density_no_count <- subset(summary.masterframe_length_ready_density, select = -c(count))
+#reorder the columns
+summary.masterframe_length_ready_density_no_count_reordered <- summary.masterframe_length_ready_density_no_count[, c(2, 1)]
+head(summary.masterframe_length_ready_density_no_count_reordered)
+#convert to matrix
+summary.masterframe_length_ready_density_no_count_reordered_mat <- as.matrix(summary.masterframe_length_ready_density_no_count_reordered)
+
+
+#Calculate EMD between observed and randomized rule speed
+retal_obs_vs_rand_emd <- emdist::emd(summary.retal_length_ready_2021_density_no_count_reordered_mat, summary.masterframe_length_ready_density_no_count_reordered_mat)
+# 204.8295
+retal_obs_vs_rand_emd
+
+
+
+
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#playing around testing some individual runs
+```{r}
+#test some individual runs
+masterframe_retaliation.df_time_2021_run804 <- subset(masterframe_retaliation.df_time_2021_only_follows, runIDs == "run 804")
+
+
+masterframe_retaliation_time_sub.df_run804 <- subset( masterframe_retaliation.df_time_2021_run804, select = c(time_to_retal))
+head(masterframe_retaliation_time_sub.df_run804)
+
+#provide label for rule in question
+masterframe_retaliation_time_ready.df_run804 <- mutate(masterframe_retaliation_time_sub.df_run804, data_type = "randomized")
+
+
+head(retal_length_ready_2021)
+
+retal_length_ready_2021_label <- mutate(retal_length_ready_2021, data_type = "observed")
+
+
+retal_length_ready_2021_comb_run804 <- rbind(masterframe_retaliation_time_ready.df_run804, retal_length_ready_2021_label )
+
+
+
+retal_length_ready_2021_comb_run804 <- mutate(retal_length_ready_2021_comb_run804, rule = "Retaliation")
+
+
+
+#observed vs randomized raw
+
+
+masterframe_retaliation_time_ready.df_run804$time_to_retal <- as.numeric(masterframe_retaliation_time_ready.df_run804$time_to_retal)
+
+
+getmode <- function(v) {
+   uniqv <- unique(v)
+   uniqv[which.max(tabulate(match(v, uniqv)))]
+}
+
+
+retal_2021_mode_obs_run804 <- getmode(retal_length_ready_2021_label$time_to_retal)
+
+retal_2021_mode_rand_run804 <-getmode(masterframe_retaliation_time_ready.df_run804$time_to_retal)
+
+
+retal_2021_mode_run804 <-  rbind(retal_2021_mode_obs_run804,retal_2021_mode_rand_run804)
+
+library(car)
+
+retal_length_ready_2021_comb_run804$time_to_retal <- as.numeric(retal_length_ready_2021_comb_run804$time_to_retal)
+
+
+
+
+
+
+
+library("devtools")
+
+devtools::install_github("psyteachr/introdataviz")
+install.packages("DescTools")
+
+
+
+library(introdataviz)
+#plot violin plot of observed time of rule following vs randomized
+ retal_violin_plot <- ggplot(retal_length_ready_2021_comb_run804, aes(x = rule, y = time_to_retal, fill = data_type))  +
+   introdataviz::geom_split_violin(alpha= .9, trim = FALSE) +
+   geom_boxplot(width = .2, alpha = .2, fatten = 2, show.legend = FALSE, outlier.shape = NA) +
+   stat_summary(fun = "mean", geom = "point",  colour = "darkblue", show.legend = F, 
+                position = position_dodge(.200))  +
+   scale_x_discrete(name = "Rule") +
+   scale_y_continuous(name = "length of retal events (s) for run 804",
+                      breaks = seq(0, 500, 100), 
+                      limits = c(0, 500)) +
+   scale_fill_brewer(palette = "Dark2", name = "Data Type") +
+   theme_minimal() +
+   geom_point(aes( y=retal_2021_mode_obs_run804), colour="blue", position = position_dodge(.200), show.legend = F) +
+   geom_point(aes( y=retal_2021_mode_rand_run804), colour="blue", position = position_dodge(-.200), show.legend = F)
+ 
+ 
+ 
+ retal_violin_plot + scale_fill_manual(values=c("gray", "red"))
+
+
+ 
+ 
+ 
+ masterframe_retaliation.df_time_2021_run51 <- subset(masterframe_retaliation.df_time_2021_only_follows, runIDs == "run 51")
+
+
+masterframe_retaliation_time_sub.df_run51 <- subset( masterframe_retaliation.df_time_2021_run51, select = c(time_to_retal))
+head(masterframe_retaliation_time_sub.df_run51)
+
+#provide label for rule in question
+masterframe_retaliation_time_ready.df_run51 <- mutate(masterframe_retaliation_time_sub.df_run51, data_type = "randomized")
+
+
+head(retal_length_ready_2021)
+
+retal_length_ready_2021_label <- mutate(retal_length_ready_2021, data_type = "observed")
+
+
+retal_length_ready_2021_comb_run51 <- rbind(masterframe_retaliation_time_ready.df_run51, retal_length_ready_2021_label )
+
+
+
+retal_length_ready_2021_comb_run51 <- mutate(retal_length_ready_2021_comb_run51, rule = "Retaliation")
+
+
+
+#observed vs randomized raw
+
+
+masterframe_retaliation_time_ready.df_run51$time_to_retal <- as.numeric(masterframe_retaliation_time_ready.df_run51$time_to_retal)
+
+
+getmode <- function(v) {
+   uniqv <- unique(v)
+   uniqv[which.max(tabulate(match(v, uniqv)))]
+}
+
+
+retal_2021_mode_obs_run51 <- getmode(retal_length_ready_2021_label$time_to_retal)
+
+retal_2021_mode_rand_run51 <-getmode(masterframe_retaliation_time_ready.df_run51$time_to_retal)
+
+
+retal_2021_mode_run51 <-  rbind(retal_2021_mode_obs_run51,retal_2021_mode_rand_run51)
+
+library(car)
+
+retal_length_ready_2021_comb_run51$time_to_retal <- as.numeric(retal_length_ready_2021_comb_run51$time_to_retal)
+
+
+
+
+
+
+
+library("devtools")
+
+devtools::install_github("psyteachr/introdataviz")
+install.packages("DescTools")
+
+
+
+library(introdataviz)
+#plot violin plot of observed time of rule following vs randomized
+ retal_violin_plot <- ggplot(retal_length_ready_2021_comb_run51, aes(x = rule, y = time_to_retal, fill = data_type))  +
+   introdataviz::geom_split_violin(alpha= .9, trim = FALSE) +
+   geom_boxplot(width = .2, alpha = .2, fatten = 2, show.legend = FALSE, outlier.shape = NA) +
+   stat_summary(fun = "mean", geom = "point",  colour = "darkblue", show.legend = F, 
+                position = position_dodge(.200))  +
+   scale_x_discrete(name = "Rule") +
+   scale_y_continuous(name = "length of retal events (s) for run 51",
+                      breaks = seq(0, 500, 100), 
+                      limits = c(0, 500)) +
+   scale_fill_brewer(palette = "Dark2", name = "Data Type") +
+   theme_minimal() +
+   geom_point(aes( y=retal_2021_mode_obs_run51), colour="blue", position = position_dodge(.200), show.legend = F) +
+   geom_point(aes( y=retal_2021_mode_rand_run51), colour="blue", position = position_dodge(-.200), show.legend = F)
+ 
+ 
+ 
+ retal_violin_plot + scale_fill_manual(values=c("gray", "red"))
+
+
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ retal_violin_plot <- ggplot(retal_length_ready_2021_comb_run51, aes(x = rule, y = time_to_retal, fill = data_type))  +
+   introdataviz::geom_split_violin(alpha= .9, trim = FALSE) +
+   geom_boxplot(width = .2, alpha = .2, fatten = 2, show.legend = FALSE, outlier.shape = NA) +
+   stat_summary(fun = "mean", geom = "point",  colour = "darkblue", show.legend = F, 
+                position = position_dodge(.200))  +
+   scale_x_discrete(name = "Rule") +
+   scale_y_continuous(name = "length of retal events (s) for run 51",
+                      breaks = seq(0, 500, 100), 
+                      limits = c(0, 500)) +
+   scale_fill_brewer(palette = "Dark2", name = "Data Type") +
+   theme_minimal() +
+   geom_point(aes( y=retal_2021_mode_obs_run51), colour="blue", position = position_dodge(.200), show.legend = F) +
+   geom_point(aes( y=retal_2021_mode_rand_run51), colour="blue", position = position_dodge(-.200), show.legend = F)
+ 
+ 
+ 
+ retal_violin_plot + scale_fill_manual(values=c("gray", "red"))
+ 
+ 
+ 
+ 
+ + theme(axis.text = element_text(size=20), axis.title= element_text(size = 15))
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+```
+
+```{r}
+retal_length_ready_2021$time_to_retal <- as.numeric(retal_length_ready_2021$time_to_retal)
+
+
+head(retal_length_ready_2021)
+
+#convert to a density matrix
+summary.retal_length_ready_2021 <- retal_length_ready_2021 %>% group_by(time_to_retal) %>%
+  dplyr::summarize (
+    count =n())
+
+summary.retal_length_ready_2021
+
+summary.retal_length_ready_2021_density <- mutate(summary.retal_length_ready_2021, density = count/sum(count))
+summary.retal_length_ready_2021_density_no_count <- subset(summary.retal_length_ready_2021_density, select = -c(count))
+summary.retal_length_ready_2021_density_no_count_reordered <- summary.retal_length_ready_2021_density_no_count[, c(2, 1)]
+head(summary.retal_length_ready_2021_density_no_count_reordered)
+summary.retal_length_ready_2021_density_no_count_reordered_mat <- as.matrix(summary.retal_length_ready_2021_density_no_count_reordered)
+
+
+
+
+
+masterframe_length_ready <- subset(masterframe_retaliation_time_sub.df, select = c(time_to_retal))
+head(masterframe_length_ready)
+
+#convert to a density matrix
+summary.masterframe_length_ready <- masterframe_length_ready %>% group_by(time_to_retal) %>%
+  dplyr::summarize (
+    count =n())
+
+summary.masterframe_length_ready
+
+summary.masterframe_length_ready_density <- mutate(summary.masterframe_length_ready, density = count/sum(count))
+summary.masterframe_length_ready_density_no_count <- subset(summary.masterframe_length_ready_density, select = -c(count))
+summary.masterframe_length_ready_density_no_count_reordered <- summary.masterframe_length_ready_density_no_count[, c(2, 1)]
+head(summary.masterframe_length_ready_density_no_count_reordered)
+summary.masterframe_length_ready_density_no_count_reordered_mat <- as.matrix(summary.masterframe_length_ready_density_no_count_reordered)
+
+
+#EMD 
+retal_obs_vs_rand_emd <- emdist::emd(summary.retal_length_ready_2021_density_no_count_reordered_mat, summary.masterframe_length_ready_density_no_count_reordered_mat)
+#203.2906
+
+
+
+
+
+
+
+
+
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#Scrap
+```{r}
+
+
+c19 <- c(
+  "dodgerblue2", "#E31A1C", # red
+  "green4",
+  "#6A3D9A", # purple
+  "#FF7F00", # orange
+  "black", "gold1",
+  "skyblue2", "#FB9A99", # lt pink
+  "palegreen2",
+  "#CAB2D6", # lt purple
+  "#FDBF6F", # lt orange
+   "khaki2",
+  "maroon", "orchid1", "deeppink1", "blue1", "steelblue4",
+  "darkturquoise"
+)
+
+
+
+individ_retal_plot_2021 <- ggplot(summary.retal.individ_2021, aes(x=actor_2, y=count, fill=c19)) +
+         geom_bar(stat="identity", position = 'dodge', show.legend = FALSE)+ theme_minimal() +  theme(axis.text.x = element_text(angle = 90, vjust=0.5), axis.text = element_text(size=25), axis.title= element_blank()) #+ coord_flip() 
+individ_retal_plot_2021
+
+
+
+
+
+
+individ_retal_plot_2021 <- ggplot(summary.retal.individ_2021, aes(x=actor_2, y=count, fill=c19)) +
+         geom_bar(stat="identity", position = 'dodge', show.legend = FALSE)+ theme_minimal() +  theme(
+           axis.text = element_text(size=25), axis.title= element_blank()) + coord_flip() 
+individ_retal_plot_2021
+
+
+
+
+```
+
+```{r}
+#Earth movers distance
+install.packages("emdist")
+library("emdist")
+
+
+retal_length_ready_2021_label_2021_matrix <- matrix(retal_length_ready_2021_label$time_to_retal)
+masterframe_retaliation_time_sub.df_run51_mat <- matrix(masterframe_retaliation_time_sub.df_run51$time_to_retal)
+
+emd2d(retal_length_ready_2021_label_2021_matrix, masterframe_retaliation_time_sub.df_run51_mat)
+#p = .4336381
+
+
+
+retal_length_ready_2021_label_2021_matrix <- matrix(retal_length_ready_2021_label$time_to_retal)
+masterframe_retaliation_time_sub.df_run804_mat <- matrix(masterframe_retaliation_time_sub.df_run804$time_to_retal)
+
+emd2d(retal_length_ready_2021_label_2021_matrix, masterframe_retaliation_time_sub.df_run804_mat)
+#0.3078415
+
+
+
+testing <- c(retal_length_ready_2021_label_2021_matrix, masterframe_retaliation_time_sub.df_run804_mat)
+
+names(testing) <- paste("sample", 1:32)
+
+groupA.labels <- rep("obs",16)
+groupB.labels <- rep("804",16)
+
+labels <- c(groupA.labels, groupB.labels)
+names(labels) <- names(testing)
+
+
+calculate_emd_gene(testing, labels, names(testing))
+
+
+
+
+
+
+
+
+test <-rnorm(16)
+test3 <- rnorm(16)
+test4 <- matrix(test3)
+test2 <- matrix(test)
+emd2d(test4,test2 )
+
+
+
+
+
+
+
+
+
+
+
+
+exp_data <- rnorm(100)
+names(exp_data) <- paste("sample", 1:100)
+
+groupA.labels <- rep("A",50)
+groupB.labels <- rep("B",50)
+
+labels <- c(groupA.labels, groupB.labels)
+names(labels) <- names(exp_data)
+
+
+calculate_emd_gene(exp_data, labels, names(exp_data))
+
+df <- as.data.frame(exp_data)
+df$group[1:50] <- "A"
+df$group[51:100] <- "B"
+
+ggplot(df, aes(exp_data, fill=group)) + geom_density(alpha=0.5)
+
+
+
+
+test1 <- exp_data[1:50]
+test2 <- exp_data[51:100]
+test1 <-matrix(test1)
+test2 <-matrix(test2)
+
+emd2d(test1,test2 )
+
+
+
+
+
+
+
+
+
+A<-matrix(1:6/sum(1:6),2) 
+B<-matrix(c(0,0,0,0,0,1),2)
+emd2d(A,B) 
+#ifwebringtherowscloser,thedistancewillbereduced 
+#sincemassfromthefirstrow hastomovedown 
+emd2d(A,B,,0.1)
+
+
+
+
+
+
+
+```
+
+```{r}
+
+surv <- c(seq(10,800, by = 10))
+
+
+surv.df_retal_2021 <- data.frame(seconds = surv)
+
+percentage_retal_2021 <-c()
+
+head(retal_length_ready_2021)
+
+retal_length_ready_2021$time_to_retal <- as.numeric(retal_length_ready_2021$time_to_retal)
+
+
+
+for (y in surv){ perc <-length(which(retal_length_ready_2021$time_to_retal <= y))
+perc_retal_2021 <- perc/length(retal_length_ready_2021$time_to_retal)
+percentage_retal_2021 <- c(percentage_retal_2021, perc_retal_2021)
+ 
+}
+
+percentage_retal_2021_ready <- data.frame( seconds = surv,
+                                          percentage = percentage_retal_2021)
+
+ggplot(data=percentage_retal_2021_ready, aes(x=seconds, y=percentage, group=1)) +
+  geom_line()+
+  geom_point() +
+  scale_y_continuous(name = "percentage",
+                     breaks = seq(0, 1, .1), 
+                     limits = c(0, 1)) +
+  scale_x_continuous(name = "length of retal events (s)",
+                     breaks = seq(0, 600, 25), 
+                     limits = c(0, 600))
+#at 190 80%
+#~ 575 for 90%
+
+```
+
+
+
+
+
+```{r}
+
+library(car)
+
+
+
+
+
+
+
+#get individual ids for actor, subject, actor_2, and subject_2 in format for multi membership model
+retal_mm_pt1 <- retal_length_ready_2021_comb
+retal_mm_pt1$act_sub_comb <- paste0(retal_mm_pt1$actor, ",", retal_mm_pt1$subject, ",",  retal_mm_pt1$actor_2, ",", retal_mm_pt1$subject_2)
+
+retal_length_ready_2021_comb_2021_mm <- lmerMultiMember::weights_from_vector(retal_mm_pt1$act_sub_comb)
+
+
+
+m1retal_2021_MM <- glmer(time_to_retal ~ data_type   + (1| date_period) + ( 1| individ_ID), data = retal_length_ready_2021_comb ,   control = glmerControl(optimizer = "bobyqa", optCtrl = list(maxfun=2e5)), family = Gamma(link = "log"), memberships = list(individ_ID = retal_length_ready_2021_comb_2021_mm))
+
+summary(m1retal_2021_MM)
+
+
+
+
+
+
+
+
+
+m1testretal_2021 <- glmer(time_to_retal ~ data_type  + (1 | date_period)   , data = retal_length_ready_2021_comb ,   control = glmerControl(optimizer = "bobyqa", optCtrl = list(maxfun=2e5)), family = Gamma(link = "log"))
+summary(m1testretal_2021)
+#something like 0.0506   use the test retal one
+#UPDATE THE MANUSCRIPT
+
+
+
+
+
+
+
+
+
+library(jmv)
+# Conduct Welch's ANOVA
+
+
+welch.rules_retal_vs_random <- oneway.test(time_to_retal ~ data_type, data = retal_length_ready_2021_comb, var.equal = FALSE)
+welch.rules_retal_vs_random
+
+#p-value = 0.6056
+
+
+hmm <- glmer(time_to_retal ~ data_type  + (1 | actor_2)  , data = retal_length_ready_2021_comb , family = Gamma(link = "inverse"))
+
+summary(hmm)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+m1retal <- glmer(time_to_retal ~ data_type + (1 | actor_2) + (1 | date_period) , data = retal_length_ready_2021_comb ,   control = glmerControl(optimizer = "bobyqa", optCtrl = list(maxfun=2e5)), family = Gamma(link = "log"))
+summary(m1retal)
+ 
+ m1retalglm <- glm(time_to_retal ~ data_type   , data = retal_length_ready_2021_comb,  family = Gamma(link = "log") )
+
+ 
+ install.packages("sjPlot")
+
+ library(multcomp)
+
+library(strengejacke)
+update.packages("insight")
+
+
+ library(sjPlot)
+
+install.packages("report")
+
+  
+ confint_retal_2021 <- round(confint(m1testretal_2021, method = "Wald", level = 0.95), 3)
+confint_retal_2021
+
+summary(glht(m1testretal_2021, linfct = mcp(data_type="Tukey")), test = adjusted("none"))
+
+tab_model(m1testretal_2021)
+report::report(m1testretal_2021)
+
+#Intercept 4.7620267 to 6.291963
+#data_typerandomized -0.3605043 to 1.101225
+```
+
+
+
+
+
+
+
+
+
+```{r}
+masterframe_retaliation_time_run.df <- subset( masterframe_retaliation_time_sub_full.df, select = c(time_to_retal, runIDs ))
+
+colnames(masterframe_retaliation_time_run.df) <- c('time_to_retal','data_type') 
+head(masterframe_retaliation_time_run.df)
+
+
+xrandnum_retal <- paste("run",sample(1:1000, 5))
+xrandnum_retal
+
+masterframe_retaliation_time_run_sub.df <- subset(masterframe_retaliation_time_run.df, data_type == xrandnum_retal)
+
+
+retal_length_ready_2021_comb_five <- rbind(masterframe_retaliation_time_run_sub.df, retal_length_ready_2021_label )
+
+
+#observed vs randomized raw
+ggplot(retal_length_ready_2021_comb_five, aes(x=time_to_retal, fill = data_type)) + 
+  geom_histogram(aes(y=..density..),      
+                 binwidth=1) +#,
+                 #colour="black", fill="white") + 
+  geom_density() +   scale_x_continuous(name = "length in s of five retal events random vs observed", limits = c(0,100)) 
+
+library(devtools)
+
+install.packages("devtools")
+devtools::install_github("r-lib/devtools")
+
+
+install.packages("C:\Users\Xmanf\AppData\Local\Temp\Rtmpsnu4gv\downloaded_packages", repos = NULL, type="source")
+
+
+
+install.packages("devtools.zip", repos = NULL)
+
+
+
+
+
+devtools::install_github("psyteachr/introdataviz")
+
+
+
+
+
+library(devtools)
+
+
+
+```
+
+```{r}
+head(retal_length_ready_2021_label)
+
+retal_length_ready_2021_label$time_to_retal <- as.numeric(retal_length_ready_2021_label$time_to_retal)
+
+retal_length_ready_2021_avg <- mean(retal_length_ready_2021_label$time_to_retal)
+
+masterframe_retaliation_time_run.df$time_to_retal <- as.numeric(masterframe_retaliation_time_run.df$time_to_retal)
+
+
+retal_rand_avgs <- masterframe_retaliation_time_run.df %>%
+  group_by(data_type) %>%
+  summarise_at(vars(time_to_retal), list(avg_time_to_retal = mean))
+
+
+
+length(unique(retal_rand_avgs$avg_time_to_retal))
+
+ggplot(retal_rand_avgs, aes(x=avg_time_to_retal)) + 
+  geom_histogram(aes(y=..density..),      
+                 binwidth=10,
+                 colour="black", fill="white") +
+  geom_density() +   scale_x_continuous(name = "length in s of mean retal events random vs mean observed", limits = c(0,1000)) +
+  geom_vline(xintercept = retal_length_ready_2021_avg, colour = "red", size = 2)
+
+
+retal_tally <-length(which(retal_rand_avgs$avg_time_to_retal < retal_length_ready_2021_avg))
+
+pretal_tally <-  retal_tally/length(retal_rand_avgs$avg_time_to_retal)
+
+
+
+```
+
+
+```{r}
+
+
+
+xrandnum_retal
+
+retal_rand_avgs_five <- filter(retal_rand_avgs, 
+                               data_type == xrandnum_retal[1] | data_type == xrandnum_retal[2] | data_type == xrandnum_retal[3] | data_type == xrandnum_retal[4] | data_type == xrandnum_retal[5])
+
+
+
+
+
+
+
+ggplot(retal_rand_avgs_five, aes(x=avg_time_to_retal, fill = data_type)) + 
+  geom_histogram(aes(y=..density..),      
+                 binwidth=10) +
+  geom_density() +   scale_x_continuous(name = "length in s of five mean retal events random vs mean observed", limits = c(0,1000)) +
+  geom_vline(xintercept = retal_length_ready_2021_avg, colour = "red", size = 2)
+
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+```{r}
+#Here we are randomizing time between events for the permutation
+#start with 
+#ALWAYS RUN THE OBSERVED TIME CODE FIRST
+head(practdrlist_ordered[[1]])
+
+
+
+#put events sidebyside within date and within bird
+datelist_time_2021 <- lapply(practdrlist_ordered, function(x) mutate(x, actor_2 = lead(actor), subject_2 = lead(subject), full_time_2 = lead(full_time), date2 = lead(date))) 
+
+
+datelist_time_2021<- datelist_time_2021 [sapply(datelist_time_2021, nrow)>0]
+
+
+#get rid of the "end" interactions each period and the filler rows from the times when a bird did not interact on a day
+datelist_time_2021_no_na <- lapply(datelist_time_2021, function(x) na.omit(x))
+datelist_time_2021_no_na_time_calc <- lapply(datelist_time_2021_no_na, function(x) mutate(x, time_to_retal = full_time_2 - full_time))
+
+listlength_time <- as.numeric(length(datelist_time_2021_no_na_time_calc))
+datex3 <- 1:listlength_time
+
+
+for (i in datex) {
+  datelist_time_2021_no_na_time_calc[[i]]$time_to_retal <- as.numeric(datelist_time_2021_no_na_time_calc[[i]]$time_to_retal)
+  
+}
+
+
+datelist_time_2021_no_na_time_calc_binded <-  bind_rows(datelist_time_2021_no_na_time_calc, .id = "column_label")
+
+
+datelist_time_2021_sep_by_obs_sesh <- 
+
+
+
+pb = txtProgressBar(min=0, max = nruns, style = 3)
+
+#run ids should be 1 through however many times you want to run through the permutation
+runIDs <- seq(1,1000)
+
+#create an empty masterframe to be filled with each run of the permutation
+masterframe_retaliation.df_time_2021 <- data.frame(runIDs = character(),
+                             actor = character(),
+                             subject = character(),
+                             date = character(),
+                             full_time = integer(),
+                             counter = character(),
+                             actor_2 = character(),
+                             subject_2 = character(),
+                             full_time_2 = integer(),
+                             date2 = character(),
+                             initiated = character(),
+                             rule_followed = character(),
+                             time_to_retal = integer(),
+                             stringsAsFactors=FALSE)
+
+
+set.seed(10)
+#forloop starts here'
+for (r in 1:length(runIDs)) { #r = 1 is a test you can uncomment to see if it works before #running it 100 times
+#r = 1
+  run <- r
+      setTxtProgressBar(pb, r) #update progress bar
+  loop.run <- paste("run", run) 
+  loop.run
+  #for example, if r = 1, looprun will say run 1 which will allow you to keep each run's #data straight
+  
+    
+
+  
+  #renamed data
+  loop.datalist <- datelist_time_2021_no_na_time_calc
+  head(loop.datalist[[3]])
+  xorder <- c()
+  listlength <- as.numeric(length(loop.datalist))
+datex2 <- 1:listlength
+  full_time_to_rule <-c()
+  loop.data.randomized.time_to_rule.added <- c()
+  #get rid of anything thats not actor and receiver (we will bind back on the date and time #later anyways to preserve
+  #their order)
+  
+#remove date from each df in the list
+#create a randomized sequence of numbers to bind to the subset data (ex. 2,6,1,3,5,4)
+#sort the data frame to put the randomized numbers in order from 1 to whatever and voila, #the order of events has been randomized (ex. from above 1,2,3,4,5,6)
+
+   for(i in datex2) {
+     full_time_to_rule[[i]] <- subset(loop.datalist[[i]], select = c(time_to_retal))
+         loop.datalist[[i]] <- subset(loop.datalist[[i]], select = -c(time_to_retal))
+
+    xorder[[i]] <- data.frame(xorder = sample(1:length(full_time_to_rule[[i]]$time_to_retal),
+                                              length(full_time_to_rule[[i]]$time_to_retal)))
+    full_time_to_rule[[i]] <- mutate(full_time_to_rule[[i]], 
+                                 xorderx = xorder[[i]]$xorder)
+    full_time_to_rule[[i]] <-
+      full_time_to_rule[[i]][order(full_time_to_rule[[i]]$xorderx),]
+    #bind time back on
+    loop.data.randomized.time_to_rule.added[[i]] <- bind_cols(loop.datalist[[i]], full_time_to_rule[[i]])
+    loop.data.randomized.time_to_rule.added[[i]] <- subset(loop.data.randomized.time_to_rule.added[[i]], select = -c(xorderx))
+
+   }
+  
+
+  
+
+
+
+loop.data.randomized.time_to_rule.added_ordered <- lapply(loop.data.randomized.time_to_rule.added, function(x) arrange(x, date, full_time))
+
+ 
+
+
+
+
+ loop.data.randomized.time_to_rule.added_ordered <- lapply(loop.data.randomized.time_to_rule.added_ordered, function(x) mutate(x, actor_2 = lead(actor), 
+                                                                                   actor_2_rank = lead(actor_rank), 
+                                                                                   subject_2 = lead(subject), 
+                                                                                   subject_2_rank = lead(subject_rank), 
+                                                                                   full_time_2 = lead(full_time), 
+                                                                                   date2 = lead(date))) 
+
+
+
+
+
+
+ 
+for(i in dateact1) {
+  loop.data.randomized.time_to_rule.added_ordered[[i]] <- mutate(loop.data.randomized.time_to_rule.added_ordered[[i]], 
+                         initiated = ifelse(subject == counter, "yes","no"), 
+                         rule_followed = ifelse(actor == subject_2 
+                                                & subject == actor_2 
+                                                & time_to_retal > 0
+                                                & date2 == date
+                                                & subject == counter
+                                                & actor_2 == counter,
+                                                "yes","no"))
+} 
+
+ 
+
+#combine dataframes into one huge dataframe
+loop.datalist_time_randomized_binded_tested_retal_2021 <- bind_rows(loop.data.randomized.time_to_rule.added_ordered, .id = "column_label")
+
+#sort by time and date
+loop.datalist_time_randomized_binded_tested_retal_2021 <- loop.datalist_time_randomized_binded_tested_retal_2021 %>%
+  arrange(loop.datalist_time_randomized_binded_tested_retal_2021$date, loop.datalist_time_randomized_binded_tested_retal_2021$full_time)
+
+
+
+
+
+
+#need to check but i think it works to get rid of all "initiated no" rows to get rid of #duplicates, as retaliation 
+#is literally possible whenever an aggressive event takes place
+#Update. It does work
+
+testhugesorted_no_dup_rand_time <- subset(loop.datalist_time_randomized_binded_tested_retal_2021, initiated != "no") 
+
+retaliation_no_dup_rand_time <- subset(testhugesorted_no_dup_rand_time, select = c(date, full_time, actor, subject, 
+                                                               counter, actor_2, subject_2, full_time_2, date2, 
+                                                               initiated,  rule_followed,time_to_retal))
+
+
+
+
+
+  
+  #end of retaliation process
+  #end of rule code
+  
+  
+  
+  #bind vector of run IDs for each run to the dataframe so that you can have a numeric run #id next to each data point
+  #that coresponds with that run which will allow you to sort/put them in ascending order later
+ runIDs <- rep(loop.run, length(retaliation_no_dup_rand_time$actor))
+ 
+  retaliation_complete_rand_time_2021 <- cbind(runIDs, retaliation_no_dup_rand_time)
+  
+  
+#put each runs data into teh masterframe
+  masterframe_retaliation.df_time_2021 <- rbind(masterframe_retaliation.df_time_2021, retaliation_complete_rand_time_2021)
+  
+}
+
+```
+
+
+
+
+
+
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
