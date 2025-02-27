@@ -1,0 +1,1132 @@
+---
+title: "Additional Group 1-3 stats and plots"
+author: "Xavier Francis"
+date: "2025-02-26"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+
+
+#observed count of rule follows compared to random faceted plot
+```{r}
+
+#make all column names consistent
+colnames(rand_retal_.frame)[1] <- 'count_of_rule_follows'
+colnames(rand_retal_.frame2022G1)[1] <- 'count_of_rule_follows'
+colnames(rand_retal_.frame2022G2)[1] <- 'count_of_rule_follows'
+colnames(rand_pile_.frame)[1] <- 'count_of_rule_follows'
+colnames(rand_pile_.frame_2022G1)[1] <- 'count_of_rule_follows'
+colnames(rand_pile_.frame_2022G2)[1] <- 'count_of_rule_follows'
+colnames(rand_pass_.frame)[1] <- 'count_of_rule_follows'
+colnames(rand_pass_.frame_2022G1)[1] <- 'count_of_rule_follows'
+colnames(rand_pass_.frame_2022G2)[1] <- 'count_of_rule_follows'
+colnames(rand_opp_.frame)[1] <- 'count_of_rule_follows'
+colnames(rand_opp_.frame_2022G1)[1] <- 'count_of_rule_follows'
+colnames(rand_opp_.frame_2022G2)[1] <- 'count_of_rule_follows'
+colnames(rand_pun_.frame)[1] <- 'count_of_rule_follows'
+colnames(rand_pun_.frame_2022G1)[1] <- 'count_of_rule_follows'
+colnames(rand_pun_.frame_2022G2)[1] <- 'count_of_rule_follows'
+
+
+
+
+
+
+
+#bind all dfs containing the counts of rule follows from the randomized reference models. bind possible grouping factors
+tdr_count_rand_comb <- rbind(
+  cbind(rand_retal_.frame, Group = "Retalialtion Group 1", groupid = "Group 1", rule = "Retaliation"),
+  cbind(rand_retal_.frame2022G1, Group = "Retaliation Group 2", groupid = "Group 2", rule = "Retaliation"),
+  cbind(rand_retal_.frame2022G2, Group = "Retaliation Group 3", groupid = "Group 3", rule = "Retaliation"),
+  cbind(rand_pile_.frame, Group = "Pile-on Group 1", groupid = "Group 1", rule = "Pile-on"),  
+  cbind(rand_pile_.frame_2022G1, Group = "Pile-on Group 2", groupid = "Group 2", rule = "Pile-on"),
+  cbind(rand_pile_.frame_2022G2, Group = "Pile-on Group 3", groupid = "Group 3", rule = "Pile-on"),
+  cbind(rand_pass_.frame, Group = "Pass-along Group 1", groupid = "Group 1", rule = "Pass-along"),
+  cbind(rand_pass_.frame_2022G1, Group = "Pass-along Group 2", groupid = "Group 2", rule = "Pass-along"),
+  cbind(rand_pass_.frame_2022G2, Group = "Pass-along Group 3", groupid = "Group 3", rule = "Pass-along"),
+  cbind(rand_opp_.frame, Group = "Opportunism Group 1", groupid = "Group 1", rule = "Opportunism"),
+  cbind(rand_opp_.frame_2022G1, Group = "Opportunism Group 2", groupid = "Group 2", rule = "Opportunism"),
+  cbind(rand_opp_.frame_2022G2, Group = "Opportunism Group 3", groupid = "Group 3", rule = "Opportunism"),
+  cbind(rand_pun_.frame, Group = "Punishment Group 1", groupid = "Group 1", rule = "Punishment"),
+  cbind(rand_pun_.frame_2022G1, Group = "Punishment Group 2", groupid = "Group 2", rule = "Punishment"),
+  cbind(rand_pun_.frame_2022G2, Group = "Punishment Group 3", groupid = "Group 3", rule = "Punishment")
+
+)
+
+
+
+
+
+
+
+
+
+#write.csv(tdr_count_rand_comb, "C:/Users/Xmanf/Desktop/Ch1 TDR files/tdr_count_rand_comb.csv")
+
+
+
+#tdr_count_rand_comb <- read.csv("C:/Users/Xmanf/Desktop/Ch1 TDR files/tdr_count_rand_comb.csv", header=TRUE, stringsAsFactors=FALSE)
+
+
+#make all column names consistent
+colnames(retal_real.frame)[1] <- 'count_of_rule_follows'
+colnames(retal_real.frame2022G1)[1] <- 'count_of_rule_follows'
+colnames(retal_real.frame2022G2)[1] <- 'count_of_rule_follows'
+colnames(pile_real.frame_2021)[1] <- 'count_of_rule_follows'
+colnames(pile_real_2022G1_frame)[1] <- 'count_of_rule_follows'
+colnames(pile_real_2022G2_frame)[1] <- 'count_of_rule_follows'
+colnames(pass_along_real_frame_2021)[1] <- 'count_of_rule_follows'
+colnames(pass_along_real_2022G1_frame)[1] <- 'count_of_rule_follows'
+colnames(pass_along_real_2022G2_frame)[1] <- 'count_of_rule_follows'
+colnames(opp_real_2021_frame)[1] <- 'count_of_rule_follows'
+colnames(opp_real_2022G1_frame)[1] <- 'count_of_rule_follows'
+colnames(opp_real_2022G2_frame)[1] <- 'count_of_rule_follows'
+colnames(punishment_real_2021_frame)[1] <- 'count_of_rule_follows'
+colnames(punishment_real_2022G1_frame)[1] <- 'count_of_rule_follows'
+colnames(punishment_real_2022G2_frame)[1] <- 'count_of_rule_follows'
+
+# #bind all dfs containing the counts of rule follows from observed data. bind possible grouping factors
+tdr_count_real_comb<- rbind(
+  cbind(retal_real.frame, Group = "Retalialtion Group 1", groupid = "Group 1", rule = "Retaliation"),
+  cbind(retal_real.frame2022G1, Group = "Retaliation Group 2", groupid = "Group 2", rule = "Retaliation"),
+  cbind(retal_real.frame2022G2, Group = "Retaliation Group 3", groupid = "Group 3", rule = "Retaliation"),
+  cbind(pile_real.frame_2021, Group = "Pile-on Group 1", groupid = "Group 1", rule = "Pile-on"),  
+  cbind(pile_real_2022G1_frame, Group = "Pile-on Group 2", groupid = "Group 2", rule = "Pile-on"),
+  cbind(pile_real_2022G2_frame, Group = "Pile-on Group 3", groupid = "Group 3", rule = "Pile-on"),
+  cbind(pass_along_real_frame_2021, Group = "Pass-along Group 1", groupid = "Group 1", rule = "Pass-along"),
+  cbind(pass_along_real_2022G1_frame, Group = "Pass-along Group 2", groupid = "Group 2", rule = "Pass-along"),
+  cbind(pass_along_real_2022G2_frame, Group = "Pass-along Group 3", groupid = "Group 3", rule = "Pass-along"),
+  cbind(opp_real_2021_frame, Group = "Opportunism Group 1", groupid = "Group 1", rule = "Opportunism"),
+  cbind(opp_real_2022G1_frame, Group = "Opportunism Group 2", groupid = "Group 2", rule = "Opportunism"),
+  cbind(opp_real_2022G2_frame, Group = "Opportunism Group 3", groupid = "Group 3", rule = "Opportunism"),
+  cbind(punishment_real_2021_frame, Group = "Punishment Group 1", groupid = "Group 1", rule = "Punishment"),
+  cbind(punishment_real_2022G1_frame, Group = "Punishment Group 2", groupid = "Group 2", rule = "Punishment"),
+  cbind(punishment_real_2022G2_frame, Group = "Punishment Group 3", groupid = "Group 3", rule = "Punishment")
+
+)
+
+
+
+#write.csv(tdr_count_real_comb, "C:/Users/Xmanf/Desktop/Ch1 TDR files/tdr_count_real_comb")
+
+
+
+#tdr_count_rand_comb$groupid <- factor(tdr_count_rand_comb$groupid, levels = c("Group 1", "Group 2", "Group 3"))
+
+#tdr_count_rand_comb$rule <- factor(tdr_count_rand_comb$rule, levels = c("Retaliation", "Pile-on", "Pass-along", "Opportunism", "Punishment"))
+
+
+
+#tdr_count_rand_comb$Group <- factor(tdr_count_rand_comb$Group, levels = c("Retalialtion Group 1", "Retaliation Group 2", "Retaliation Group 3", "Pile-on Group 1", "Pile-on Group 2", "Pile-on Group 3", "Pass-along Group 1", "Pass-along Group 2", "Pass-along Group 3", "Opportunism Group 1", "Opportunism Group 2", "Opportunism Group 3", "Punishment Group 1", "Punishment Group 2", "Punishment Group 3"))
+
+
+
+#store each rule and group as a factor in a particular order I would like them displayed in my plot
+custom_order <- c("Retalialtion Group 1", "Retaliation Group 2", "Retaliation Group 3", "Pile-on Group 1", "Pile-on Group 2", "Pile-on Group 3", "Pass-along Group 1", "Pass-along Group 2", "Pass-along Group 3", "Opportunism Group 1", "Opportunism Group 2", "Opportunism Group 3", "Punishment Group 1", "Punishment Group 2", "Punishment Group 3")
+
+# Convert group column to a factor with the desired order
+tdr_count_rand_comb$Group <- factor(tdr_count_rand_comb$Group, levels = custom_order)
+
+tdr_count_real_comb$Group <- factor(tdr_count_real_comb$Group, levels = custom_order)
+#tdr_count_real_comb <- read.csv("C:/Users/Xmanf/Desktop/Ch1 TDR files/tdr_count_real_comb", header=TRUE, stringsAsFactors=FALSE)
+
+
+
+
+
+#store p values in particular order 
+pval_df <- data.frame(
+  Group = custom_order,    # Match facets with p values
+  label = c("p = 0.174", "p = 0.16", "p = 0.036", "p = 0",
+            "p = 0.122", "p = 0.042", "p = 0", "p = 0",
+            "p = 0", "p = 0", "p = 0", "p = 0.492",
+            "p = 0", "p = 0.028", "p = 0.003"),   
+  # 90% of max count in each group to keep text inside
+    x_pos = max(tdr_count_rand_comb$count_of_rule_follows) * 0.9,  
+   # 90% of max density per group
+    y_pos = max(density(tdr_count_rand_comb$count_of_rule_follows)$y) * 0.9 
+)
+
+
+
+
+
+
+# Ensure pval_df respect the custom order
+pval_df$Group <- factor(pval_df$Group, levels = custom_order)
+
+
+
+
+
+
+# Plot faceted set of violin plots that show how often each rule was followed compared to random chance. Observed rule follows vs randomized reference mdoels
+rule_count_faceted_plot <- ggplot(tdr_count_rand_comb, aes(x = "", y = count_of_rule_follows)) +  # x is empty for density distribution
+  geom_violin(fill = "grey", color = "black", alpha = 1) +  # Violin plot
+    geom_point(data = tdr_count_real_comb, aes(x = "", y = count_of_rule_follows), color = "red", size = 10, shape = 8) +  # Add red star
+  geom_text(data = pval_df, aes(x = Inf, y = Inf, label = label), 
+            hjust = 1.5, vjust = 1.5, color = "black", size = 5, fontface = "bold") +  # Custom text in top-right
+  facet_wrap( ~ Group, scales = "free_x", ncol = 3, nrow = 5 ) +
+  theme_minimal() + 
+  theme(
+    strip.text = element_text(size = 20, face = "bold"),
+    axis.text = element_text(size = 20),  # Increase axis text size
+    axis.title = element_text(size = 20, face = "bold"),
+    axis.text.x = element_text(size = 20),
+  axis.ticks.x = element_line(),
+    panel.spacing = unit(1, "lines"),# Y-axis tit
+    panel.border = element_rect(          # Add boxes around each plot
+      color = "black", fill = NA, linewidth = 1
+    )#,
+    #axis.text.x = element_blank(),  # Remove x-axis labels (since x is empty)
+    #axis.ticks.x = element_blank()   # Remove x-axis ticks
+  ) +
+  labs(
+       x = "Density",
+       y = "Count")
+
+
+
+
+
+
+
+
+
+
+#18 by 20 landscape or
+#18 by 22 portraite
+
+
+
+
+
+```
+
+
+
+
+#individ faceted heatmap of observed rule follows
+```{r}
+
+
+
+
+
+#bind individ dataframes into one df
+indiv_combined <- rbind(
+  cbind(summary.retal.individ_2021, Group = "Retalialtion Group 1", groupid = "Group 1", rule = "Retaliation"),
+  cbind(summary.retal.individ_2022G1, Group = "Retaliation Group 2", groupid = "Group 2", rule = "Retaliation"),
+  cbind(summary.retal.individ_2022G2, Group = "Retaliation Group 3", groupid = "Group 3", rule = "Retaliation"),
+  cbind(summary.pile.individ_2021, Group = "Pile-on Group 1", groupid = "Group 1", rule = "Pile-on"),  
+  cbind(summary.pile.individ_2022G1, Group = "Pile-on Group 2", groupid = "Group 2", rule = "Pile-on"),
+  cbind(summary.pile.individ_2022G2, Group = "Pile-on Group 3", groupid = "Group 3", rule = "Pile-on"),
+  cbind(summary.pass.individ_2021, Group = "Pass-along Group 1", groupid = "Group 1", rule = "Pass-along"),
+  cbind(summary.pass.individ_2022G1, Group = "Pass-along Group 2", groupid = "Group 2", rule = "Pass-along"),
+  cbind(summary.pass.individ_2022G2, Group = "Pass-along Group 3", groupid = "Group 3", rule = "Pass-along"),
+  cbind(summary.opp.individ_2021, Group = "Opportunism Group 1", groupid = "Group 1", rule = "Opportunism"),
+  cbind(summary.opp.individ_2022G1, Group = "Opportunism Group 2", groupid = "Group 2", rule = "Opportunism"),
+  cbind(summary.opp.individ_2022G2, Group = "Opportunism Group 3", groupid = "Group 3", rule = "Opportunism"),
+  cbind(summary.pun.individ_2021, Group = "Punishment Group 1", groupid = "Group 1", rule = "Punishment"),
+  cbind(summary.pun.individ_2022G1, Group = "Punishment Group 2", groupid = "Group 2", rule = "Punishment"),
+  cbind(summary.pun.individ_2022G2, Group = "Punishment Group 3", groupid = "Group 3", rule = "Punishment")
+
+)
+
+unique(indiv_combined$actor_2)
+
+
+#write.csv(indiv_combined, "C:/Users/Xmanf/Desktop/Ch1 TDR files/indiv_combined")
+
+
+
+
+
+
+
+# Create a consistent category scale across facets
+indiv_combined$actor_2 <- factor(
+  indiv_combined$actor_2,
+  levels = c("GGG", "OBB", "OGO", "OOP", "OPP", "PGG", "POP", "PPO", "BBB", "BOB", "GGO", "GOO", "GOP", "GPG", "OOO", "PBB", "PBO", "POO", "PPP", "GGP", "GPO", "OPO", "BBO", "PBP") # Include all categories across all groups
+)
+
+#indiv_combined$Group <- factor(indiv_combined$Group, levels = c("Retalialtion Group 1", "Retaliation Group 2", "Retaliation Group 3", "Pile-on Group 1", "Pile-on Group 2", "Pile-on Group 3", "Pass-along Group 1", "Pass-along Group 2", "Pass-along Group 3", "Opportunism Group 1", "Opportunism Group 2", "Opportunism Group 3", "Punishment Group 1", "Punishment Group 2", "Punishment Group 3"))
+
+
+#store each group as a factor in a particular order I would like them displayed in my plot
+indiv_combined$groupid <- factor(indiv_combined$groupid, levels = c("Group 1", "Group 2", "Group 3"))
+
+#store each rule as a factor in a particular order I would like them displayed in my plot
+indiv_combined$rule <- factor(indiv_combined$rule, levels = c("Retaliation", "Pile-on", "Pass-along", "Opportunism", "Punishment"))
+
+
+
+
+#store each rule and group as a factor in a particular order I would like them displayed in my plot
+custom_order <- c("Retalialtion Group 1", "Retaliation Group 2", "Retaliation Group 3", "Pile-on Group 1", "Pile-on Group 2", "Pile-on Group 3", "Pass-along Group 1", "Pass-along Group 2", "Pass-along Group 3", "Opportunism Group 1", "Opportunism Group 2", "Opportunism Group 3", "Punishment Group 1", "Punishment Group 2", "Punishment Group 3")
+
+
+
+
+# Convert group column to a factor with the desired order
+indiv_combined$Group <- factor(indiv_combined$Group, levels = custom_order)
+
+#store p values in particular order 
+pval_individ_df <- data.frame(
+  Group = custom_order,    # Match facet group names
+  label = c("p = 0.174", "p = 0.16", "p = 0.036", "p = 0",
+            "p = 0.122", "p = 0.042", "p = 0", "p = 0",
+            "p = 0", "p = 0", "p = 0", "p = 0.492",
+            "p = 0", "p = 0.028", "p = 0.003"),  
+  # 90% of max count in each group to keep text inside
+    x_pos = max(indiv_combined$count) * 0.9,  # 90% of max count in each group to keep text inside
+  # 90% of max density per group
+    y_pos = max(density(indiv_combined$count)$y) * 0.9  # 90% of max density per group
+)
+
+# Ensure pval_time_df respect the custom order
+pval_individ_df$Group <- factor(pval_individ_df$Group, levels = custom_order)
+
+
+
+
+
+# Plot faceted set of heatmaps that show how often each individual used each rule
+TDR_individ_heatmap <- ggplot(indiv_combined, aes(x = rule, y = actor_2, fill = count )) + 
+  geom_tile(colour="white",size=0.25) +
+  scale_fill_gradient(low="white", high="red", na.value = "white") +
+  #geom_text(data = pval_individ_df, aes(x = Inf, y = Inf, label = label), 
+            #inherit.aes = FALSE,
+           # hjust = 1.5, vjust = 1.5, color = "black", size = 10, fontface = "bold") +
+  geom_text(aes(label = count), color = "black", size = 5) +  # Add text labels
+  facet_wrap(~ groupid, scales = "free", ncol = 1, nrow = 3) +# Free x-axis but consistent bar widths
+  theme_minimal()  +
+  theme(
+    strip.text  = element_text(size = 45, face = "bold"),
+    axis.text.x = element_text(angle = 90, size = 30, vjust=0.5),
+    axis.text.y = element_text(size = 30), 
+    axis.title.x = element_text(size = 50,   margin = margin(t = 15)),  # X-axis title
+    axis.title.y = element_text(size = 50,   margin = margin(r = 15)),
+     panel.spacing = unit(.3, "cm"),# Y-axis tit
+    panel.border = element_rect(          # Add boxes around each plot
+      color = "black", fill = NA, linewidth = 1
+    )
+  )  +
+  labs(
+    x = "Time Dependent Rule",  # Add custom x-axis title here
+    y = "Parakeet ID"   # Add custom y-axis title here
+  )
+
+TDR_individ_heatmap
+
+
+
+
+#gridextra version with different scales
+
+#G1
+indiv_combined_G1 <- subset(indiv_combined, groupid == "Group 1")
+# Plot G1
+TDR_individ_heatmap_G1 <- ggplot(indiv_combined_G1, aes(x = rule, y = actor_2, fill = count )) + 
+  geom_tile(colour="white",size=0.25) +
+  geom_text(aes(label = count), color = "black", size = 5) +  # Add text labels
+  scale_fill_gradient(low="white", high="red") +
+  theme_minimal()  +
+  ggtitle("Group 1") +  # Add title
+  theme(
+    plot.title = element_text(size = 45, face = "bold", hjust = 0.5),  
+    strip.text = element_text(size = 45, face = "bold"),
+    axis.text.x = element_text(angle = 90, size = 30, vjust=0.5),
+    axis.text.y = element_text(size = 30), 
+    axis.title.x = element_text(size = 40,  margin = margin(t = 15)),  # X-axis title
+    axis.title.y = element_text(size = 40,   margin = margin(r = 15)),
+    plot.background = element_rect(color = "black", linewidth = 3),
+     plot.margin = margin(17, 17, 17, 17),  # Increase the space around the plot (top, right, bottom, left)
+     panel.spacing = unit(.3, "cm"),# Y-axis tit
+    panel.border = element_rect(          # Add boxes around each plot
+      color = "black", fill = NA, linewidth = 1
+    ),
+  )  +
+  labs(
+    x = "Time Dependent Rule",  # Add your custom x-axis title here
+    y = "Parakeet ID"   # Add your custom y-axis title here
+  )
+
+TDR_individ_heatmap_G1
+
+
+
+#G2
+indiv_combined_G2 <- subset(indiv_combined, groupid == "Group 2")
+# Plot G2
+TDR_individ_heatmap_G2 <- ggplot(indiv_combined_G2, aes(x = rule, y = actor_2, fill = count )) + 
+  geom_tile(colour="white",size=0.25) +
+  scale_fill_gradient(low="white", high="red") +
+  geom_text(aes(label = count), color = "black", size = 5) +  # Add text labels
+  theme_minimal()  +
+    ggtitle("Group 2") +  # Add title
+  theme(
+    plot.title = element_text(size = 45, face = "bold", hjust = 0.5),  
+    strip.text  = element_text(size = 45, face = "bold"),
+    axis.text.x = element_text(angle = 90, size = 30, vjust=0.5),
+    axis.text.y = element_text(size = 30), 
+    axis.title.x = element_text(size = 40,   margin = margin(t = 10)),  # X-axis title
+    axis.title.y = element_text(size = 40,   margin = margin(r = 10)),
+    plot.background = element_rect(color = "black", linewidth = 3),
+     panel.spacing = unit(.3, "cm"),# Y-axis tit
+    plot.margin = margin(17, 17, 17, 17),  # Increase the space around the plot (top, right, bottom, left)
+    panel.border = element_rect(          # Add boxes around each plot
+      color = "black", fill = NA, linewidth = 1
+    )
+  )  +
+  labs(
+    x = "Time Dependent Rule",  # Add your custom x-axis title here
+    y = "Parakeet ID"   # Add your custom y-axis title here
+  )
+
+
+#G3
+indiv_combined_G3 <- subset(indiv_combined, groupid == "Group 3")
+# Plot G3
+TDR_individ_heatmap_G3 <- ggplot(indiv_combined_G3, aes(x = rule, y = actor_2, fill = count )) + 
+  geom_tile(colour="white",size=0.25) +
+  geom_text(aes(label = count), color = "black", size = 5) +  # Add text labels
+  scale_fill_gradient(low="white", high="red") +
+  theme_minimal()  +
+    ggtitle("Group 3") +  # Add title
+  theme(
+    plot.title = element_text(size = 45, face = "bold", hjust = 0.5),  
+    strip.text  = element_text(size = 45, face = "bold"),
+    axis.text.x = element_text(angle = 90, size = 30, vjust=0.5),
+    axis.text.y = element_text(size = 30), 
+    axis.title.x = element_text(size = 40,   margin = margin(t = 10)),  # X-axis title
+    axis.title.y = element_text(size = 40,   margin = margin(r = 10)),
+    plot.background = element_rect(color = "black", linewidth = 3),
+    plot.margin = margin(17, 17, 17, 17),  # Increase the space around the plot (top, right, bottom, left)
+     panel.spacing = unit(.3, "cm"),# Y-axis tit
+    panel.border = element_rect(          # Add boxes around each plot
+      color = "black", fill = NA, linewidth = 1
+    )
+  )  +
+  labs(
+    x = "Time Dependent Rule",  # Add custom x-axis title here
+    y = "Parakeet ID"   # Add custom y-axis title here
+  )
+
+
+library(gridExtra)
+library(grid)
+# Empty space for spacing
+spacer <- nullGrob()  
+ grid.arrange(TDR_individ_heatmap_G1, spacer, TDR_individ_heatmap_G2, spacer, TDR_individ_heatmap_G3, ncol = 1, heights = c(1, 0.1, 1, 0.1, 1))
+#18 38 portrait
+```
+
+
+
+
+
+
+
+
+
+
+#boxplot that compares rule speed across rules for each group
+```{r}
+head (retal_length_ready)
+head(pass_length_ready)
+head(pile_length_2021)
+head(pun_length_ready)
+head(opp_length_ready)
+
+
+#add rule type column and standardize column name for all datasets
+#could use loop but wanted to do one by one to keep a close eye
+
+retal_comb <- mutate(retal_length_ready, rule_type = "Retaliation", rule_time = retal_length_ready$time_to_retal, Group = "1")
+
+retal_comb_sub <- subset(retal_comb, select = c(rule_type, rule_time, Group))
+
+
+
+pass_comb <- mutate(pass_length_ready, rule_type = "Pass-along", rule_time = pass_length_ready$time_to_pass, Group = "1")
+
+pass_comb_sub <- subset(pass_comb, select = c(rule_type, rule_time, Group))
+
+
+
+pile_comb <- mutate(pile_length_2021, rule_type = "Pile-on", rule_time = pile_length_2021$time_to_pile, Group = "1")
+
+pile_comb_sub <- subset(pile_comb, select = c(rule_type, rule_time, Group))
+
+
+pun_comb <- mutate(pun_length_ready, rule_type = "Punishment", rule_time = pun_length_ready$time_to_pun, Group = "1")
+
+pun_comb_sub <- subset(pun_comb, select = c(rule_type, rule_time, Group))
+
+
+
+opp_comb <- mutate(opp_length_ready, rule_type = "Opportunism", rule_time = opp_length_ready$time_to_opp, Group = "1")
+
+opp_comb_sub <- subset(opp_comb, select = c(rule_type, rule_time, Group))
+
+
+
+
+retal_length_ready2022G1
+
+
+
+retal_comb_2022G1 <- mutate(retal_length_ready2022G1, rule_type = "Retaliation", rule_time = retal_length_ready2022G1$time_to_retal, Group = "2")
+
+retal_comb_2022G1_sub <- subset(retal_comb_2022G1, select = c(rule_type, rule_time, Group))
+
+
+
+pass_comb_2022G1 <- mutate(pass_length_ready_2022G1, rule_type = "Pass-along", rule_time = pass_length_ready_2022G1$time_to_pass, Group = "2")
+
+pass_comb_2022G1_sub <- subset(pass_comb_2022G1, select = c(rule_type, rule_time, Group))
+
+
+
+pile_comb_2022G1 <- mutate(pile_length_2022G1, rule_type = "Pile-on", rule_time = pile_length_2022G1$time_to_pile, Group = "2")
+
+pile_comb_2022G1_sub <- subset(pile_comb_2022G1, select = c(rule_type, rule_time, Group))
+
+
+pun_comb_2022G1 <- mutate(pun_length_ready_2022G1, rule_type = "Punishment", rule_time = pun_length_ready_2022G1$time_to_pun, Group = "2")
+
+pun_comb_2022G1_sub <- subset(pun_comb_2022G1, select = c(rule_type, rule_time, Group))
+
+
+
+opp_comb_2022G1 <- mutate(opp_length_ready_2022G1, rule_type = "Opportunism", rule_time = opp_length_ready_2022G1$time_to_opp, Group = "2")
+
+opp_comb_2022G1_sub <- subset(opp_comb_2022G1, select = c(rule_type, rule_time, Group))
+
+
+
+
+
+
+
+
+
+
+retal_comb_2022G2 <- mutate(retal_length_ready2022G2, rule_type = "Retaliation", rule_time = retal_length_ready2022G2$time_to_retal, Group = "3")
+
+retal_comb_2022G2_sub <- subset(retal_comb_2022G2, select = c(rule_type, rule_time, Group))
+
+
+
+pass_comb_2022G2 <- mutate(pass_length_ready_2022G2, rule_type = "Pass-along", rule_time = pass_length_ready_2022G2$time_to_pass, Group = "3")
+
+pass_comb_2022G2_sub <- subset(pass_comb_2022G2, select = c(rule_type, rule_time, Group))
+
+
+
+pile_comb_2022G2 <- mutate(pile_length_2022G2, rule_type = "Pile-on", rule_time = pile_length_2022G2$time_to_pile, Group = "3")
+
+pile_comb_2022G2_sub <- subset(pile_comb_2022G2, select = c(rule_type, rule_time, Group))
+
+
+pun_comb_2022G2 <- mutate(pun_length_ready_2022G2, rule_type = "Punishment", rule_time = pun_length_ready_2022G2$time_to_pun, Group = "3")
+
+pun_comb_2022G2_sub <- subset(pun_comb_2022G2, select = c(rule_type, rule_time, Group))
+
+
+
+opp_comb_2022G2 <- mutate(opp_length_ready_2022G2, rule_type = "Opportunism", rule_time = opp_length_ready_2022G2$time_to_opp, Group = "3")
+
+opp_comb_2022G2_sub <- subset(opp_comb_2022G2, select = c(rule_type, rule_time, Group))
+
+
+
+
+
+#bind all dfs together
+rules.length.data.frame <- rbind(retal_comb_sub, pile_comb_sub, pass_comb_sub, pun_comb_sub, opp_comb_sub, retal_comb_2022G1_sub, pile_comb_2022G1_sub, pass_comb_2022G1_sub, pun_comb_2022G1_sub, opp_comb_2022G1_sub, retal_comb_2022G2_sub, pile_comb_2022G2_sub, pass_comb_2022G2_sub, pun_comb_2022G2_sub, opp_comb_2022G2_sub) 
+head(rules.length.data.frame)
+
+rules.length.data.frame$rule_time <- as.numeric(rules.length.data.frame$rule_time)
+
+#write.csv(rules.length.data.frame, "C:/Users/Xmanf/Desktop/Ch1 TDR files/rules.length.data.frame.csv")
+#rules.length.data.frame <- read.csv("C:/Users/Xmanf/Desktop/Ch1 TDR files/rules.length.data.frame.csv", header=TRUE, stringsAsFactors=FALSE)
+tdr_time_comb$Group <- factor(tdr_time_comb$Group, levels = c("Retalialtion Group 1", "Retaliation Group 2", "Retaliation Group 3", "Pile-on Group 1", "Pile-on Group 2", "Pile-on Group 3", "Pass-along Group 1", "Pass-along Group 2", "Pass-along Group 3", "Opportunism Group 1", "Opportunism Group 2", "Opportunism Group 3", "Punishment Group 1", "Punishment Group 2", "Punishment Group 3"))
+
+
+#ensure that group number is a factor
+rules.length.data.frame$Group<- as.character( rules.length.data.frame$Group)
+
+#plot boxplot of comparisons of rule speeds for all 3 groups
+ggplot(rules.length.data.frame,aes(x =rule_type, y = rule_time, fill = Group)) + 
+  geom_boxplot() + scale_x_discrete(limits=c("Retaliation", "Pile-on", "Pass-along", "Opportunism" , "Punishment")) + 
+  labs(x="Time Dependent Rule", y="Speed of rule follows (s)") +
+  theme(legend.position = c(0.1, 0.75))  +
+  scale_fill_brewer(palette = "Set2") +
+  scale_color_brewer(palette = "Set2")  + 
+    coord_cartesian(ylim = c(0, 2750)) + scale_y_continuous(breaks = seq(0, 2750, 300)) + theme_minimal(base_size = 15)
+```
+
+
+
+#GLMM and EMD to compare rules speeds between rules across the three groups
+Group 1
+```{r}
+#GLMM and EMD
+ library(multcomp)
+
+
+#Group 1
+
+#whole procedure could be done with loop but did it one by one to keep a close eye step by step
+#prepare dfs for mixed model
+retal_comb_ready_for_mm_2021 <- subset(retal_comb, select = c(actor, subject, actor_2, subject_2, rule_type, rule_time, date_period, Group)) 
+pile_comb_ready_for_mm_2021 <- subset(pile_comb, select = c(actor, subject, actor_2, subject_2, rule_type, rule_time, date_period, Group)) 
+pass_comb_ready_for_mm_2021 <- subset(pass_comb, select = c(actor, subject, actor_2, subject_2,  rule_type, rule_time, date_period, Group)) 
+opp_comb_ready_for_mm_2021 <- subset(opp_comb, select = c(actor, subject, actor_2, subject_2,  rule_type, rule_time, date_period, Group)) 
+pun_comb_ready_for_mm_2021 <- subset(pun_comb, select = c(actor, subject, actor_2, subject_2,  rule_type, rule_time, date_period, Group)) 
+
+
+
+
+#combine into one df for mixed model and make sure rule time is numeric
+rules.length.data.frame_MM_2021 <- rbind(retal_comb_ready_for_mm_2021, pile_comb_ready_for_mm_2021, pass_comb_ready_for_mm_2021, opp_comb_ready_for_mm_2021, pun_comb_ready_for_mm_2021)
+rules.length.data.frame_MM_2021$rule_time <- as.numeric(rules.length.data.frame_MM_2021$rule_time )
+
+#write.csv(rules.length.data.frame_MM_2021, "C:/Users/Xmanf/OneDrive/Desktop/Code for parakeet stuff/rules.length.data.frame_MM_2021")
+
+
+#mixed model
+obs_time_mod_2021 <- glmer(rule_time ~ rule_type + (1 | date_period)   + (1|subject)  , data = rules.length.data.frame_MM_2021 , control = glmerControl(optimizer = "bobyqa", optCtrl = list(maxfun=2e5)), family = Gamma(link = "log"))
+
+summary_obs_time_mod_2021 <- summary(obs_time_mod_2021)
+
+summary_obs_time_mod_2021
+
+#post hoc multiple comparisons
+posthoc_2021 <- summary(glht(obs_time_mod_2021, linfct = mcp(rule_type="Tukey")), test = adjusted("none"))
+
+confint_2021 <- round(confint(obs_time_mod_2021, method = "Wald", level = 0.95), 3)
+confint_2021
+
+#report::report(obs_time_mod_2021)
+tab_model(obs_time_mod_2021)
+
+#EMD ret pile pass opp pun
+emd_ret_vs_pile_2021 <- emdist::emd(summary.pile_length_ready_density_no_count_reordered_mat, summary.retal_length_ready_density_no_count_reordered_mat)  
+emd_ret_vs_pile_2021
+#332.8338
+
+
+
+emd_ret_vs_pass_2021 <- emdist::emd(summary.pass_length_ready_density_no_count_reordered_mat, summary.retal_length_ready_density_no_count_reordered_mat)  
+emd_ret_vs_pass_2021
+#272.1652
+
+emd_ret_vs_opp_2021 <- emdist::emd(summary.opp_length_ready_density_no_count_reordered_mat, summary.retal_length_ready_density_no_count_reordered_mat)  
+emd_ret_vs_opp_2021
+#377.6661
+
+emd_ret_vs_pun_2021 <- emdist::emd(summary.pun_length_ready_density_no_count_reordered_mat, summary.retal_length_ready_density_no_count_reordered_mat)  
+emd_ret_vs_pun_2021
+#179.235
+
+
+emd_pile_vs_pass_2021 <- emdist::emd(summary.pile_length_ready_density_no_count_reordered_mat, summary.pass_length_ready_density_no_count_reordered_mat)
+emd_pile_vs_pass_2021
+#568.425
+
+emd_pile_vs_opp_2021 <- emdist::emd(summary.pile_length_ready_density_no_count_reordered_mat, summary.opp_length_ready_density_no_count_reordered_mat)
+emd_pile_vs_opp_2021
+#685.6497
+
+emd_pile_vs_pun_2021 <- emdist::emd(summary.pile_length_ready_density_no_count_reordered_mat, summary.pun_length_ready_density_no_count_reordered_mat)
+emd_pile_vs_pun_2021
+#361.7388
+
+emd_pass_vs_opp_2021 <- emdist::emd(summary.pass_length_ready_density_no_count_reordered_mat, summary.opp_length_ready_density_no_count_reordered_mat)
+emd_pass_vs_opp_2021
+#122.0958
+
+emd_pass_vs_pun_2021 <- emdist::emd(summary.pass_length_ready_density_no_count_reordered_mat, summary.pun_length_ready_density_no_count_reordered_mat)
+emd_pass_vs_pun_2021
+#213.9747
+
+emd_opp_vs_pun_2021 <- emdist::emd(summary.opp_length_ready_density_no_count_reordered_mat, summary.pun_length_ready_density_no_count_reordered_mat)
+emd_opp_vs_pun_2021
+#323.911
+
+emd_2021_all <- c(emd_pass_vs_opp_2021, emd_pile_vs_opp_2021, emd_opp_vs_pun_2021,  emd_ret_vs_opp_2021, emd_pile_vs_pass_2021, emd_pass_vs_pun_2021, emd_ret_vs_pass_2021, emd_pile_vs_pun_2021, emd_ret_vs_pile_2021, emd_ret_vs_pun_2021)
+
+
+
+mean_rule_time_2021_summary <- rules.length.data.frame_MM_2021 %>% group_by(rule_type) %>%
+  dplyr::summarize (mean(rule_time))
+mean_rule_time_2021_summary
+```
+Group 2
+```{r}
+#GLMM and EMD
+ library(multcomp)
+
+#Group 2
+#prepare dfs for mixed model
+#retal_comb_ready_for_mm_2022G1 <- subset(retal_comb_2022G1, select = c(actor, subject, actor_2, rule_type, rule_time, date_period, Group)) 
+pile_comb_ready_for_mm_2022G1 <- subset(pile_comb_2022G1, select = c(actor, subject, actor_2, subject_2, rule_type, rule_time, date_period, Group)) 
+pass_comb_ready_for_mm_2022G1 <- subset(pass_comb_2022G1, select = c(actor, subject, actor_2, subject_2, rule_type, rule_time, date_period, Group)) 
+opp_comb_ready_for_mm_2022G1 <- subset(opp_comb_2022G1, select = c(actor, subject, actor_2,  subject_2, rule_type, rule_time, date_period, Group)) 
+pun_comb_ready_for_mm_2022G1 <- subset(pun_comb_2022G1, select = c(actor, subject, actor_2, subject_2, rule_type, rule_time, date_period, Group)) 
+
+
+
+
+#combine into one df for mixed model and make sure rule time is numeric
+rules.length.data.frame_MM_2022G1 <- rbind( pile_comb_ready_for_mm_2022G1, pass_comb_ready_for_mm_2022G1, opp_comb_ready_for_mm_2022G1, pun_comb_ready_for_mm_2022G1)
+rules.length.data.frame_MM_2022G1$rule_time <- as.numeric(rules.length.data.frame_MM_2022G1$rule_time )
+
+
+#write.csv(rules.length.data.frame_MM_2022G1, "C:/Users/Xmanf/OneDrive/Desktop/Code for parakeet stuff/rules.length.data.frame_MM_2022G1")
+
+#mixed model
+obs_time_mod_2022G1 <- glmer(rule_time ~ rule_type  + (1 | date_period) + (1|subject)  + (1|actor_2) , data = rules.length.data.frame_MM_2022G1 , control = glmerControl(optimizer = "bobyqa", optCtrl = list(maxfun=2e5)), family = Gamma(link = "log"))
+summary(obs_time_mod_2022G1)
+
+
+#post hoc multiple comparisons
+posthoc_2022G1 <- summary(glht(obs_time_mod_2022G1, linfct = mcp(rule_type="Tukey")), test = adjusted("none"))
+ 
+
+confint_2022G1 <- round(confint(obs_time_mod_2022G1, method = "Wald", level = 0.95), 3)
+confint_2022G1
+
+tab_model(obs_time_mod_2022G1)
+
+
+
+
+
+
+
+#EMD ret pile pass opp pun
+#emd_ret_vs_pile_2022G1 <- emdist::emd(summary.pile_length_ready_density_no_count_reordered_mat, summary.retal_length_ready_density_no_count_reordered_mat)  
+#emd_ret_vs_pile_2022G1
+#
+
+
+
+#emd_ret_vs_pass_2022G1 <- emdist::emd(summary.pass_length_ready_density_no_count_reordered_mat, summary.retal_length_ready_density_no_count_reordered_mat)  
+#emd_ret_vs_pass_2022G1
+#
+
+#emd_ret_vs_opp_2022G1 <- emdist::emd(summary.opp_length_ready_density_no_count_reordered_mat, summary.retal_length_ready_density_no_count_reordered_mat)  
+#emd_ret_vs_opp_2022G1
+#
+
+#emd_ret_vs_pun_2022G1 <- emdist::emd(summary.pun_length_ready_density_no_count_reordered_mat, summary.retal_length_ready_density_no_count_reordered_mat)  
+#emd_ret_vs_pun_2022G1
+#
+
+
+emd_pile_vs_pass_2022G1 <- emdist::emd(summary.pile_length_ready_density_no_count_reordered_mat_2022G1, summary.pass_length_ready_density_no_count_reordered_mat_2022G1)
+emd_pile_vs_pass_2022G1
+#575.8162
+
+emd_pile_vs_opp_2022G1 <- emdist::emd(summary.pile_length_ready_density_no_count_reordered_mat_2022G1, summary.opp_length_ready_density_no_count_reordered_mat_2022G1)
+emd_pile_vs_opp_2022G1
+#523.6013
+
+emd_pile_vs_pun_2022G1 <- emdist::emd(summary.pile_length_ready_density_no_count_reordered_mat_2022G1, summary.pun_length_ready_density_no_count_reordered_mat_2022G1)
+emd_pile_vs_pun_2022G1
+#168.4804
+
+emd_pass_vs_opp_2022G1 <- emdist::emd(summary.pass_length_ready_density_no_count_reordered_mat_2022G1, summary.opp_length_ready_density_no_count_reordered_mat_2022G1)
+emd_pass_vs_opp_2022G1
+#125.4952
+
+emd_pass_vs_pun_2022G1 <- emdist::emd(summary.pass_length_ready_density_no_count_reordered_mat_2022G1, summary.pun_length_ready_density_no_count_reordered_mat_2022G1)
+emd_pass_vs_pun_2022G1
+#407.8146
+
+emd_opp_vs_pun_2022G1 <- emdist::emd(summary.opp_length_ready_density_no_count_reordered_mat_2022G1, summary.pun_length_ready_density_no_count_reordered_mat_2022G1)
+emd_opp_vs_pun_2022G1
+#356.0882
+
+
+
+
+
+
+emd_2022G1_all <- c(emd_pass_vs_opp_2022G1, emd_pile_vs_opp_2022G1, emd_opp_vs_pun_2022G1, emd_pile_vs_pass_2022G1, emd_pass_vs_pun_2022G1,  emd_pile_vs_pun_2022G1)
+
+
+
+
+mean_rule_time_2022G1_summary <- rules.length.data.frame_MM_2022G1 %>% group_by(rule_type) %>%
+  dplyr::summarize (mean(rule_time))
+mean_rule_time_2022G1_summary
+
+```
+
+Group 3
+```{r}
+#GLMM and EMD
+ library(multcomp)
+
+#Group 2
+#prepare dfs for mixed model
+retal_comb_ready_for_mm_2022G2 <- subset(retal_comb_2022G2, select = c(actor, subject, actor_2, subject_2, rule_type, rule_time, date_period, Group)) 
+pile_comb_ready_for_mm_2022G2 <- subset(pile_comb_2022G2, select = c(actor, subject, actor_2, subject_2, rule_type, rule_time, date_period, Group)) 
+pass_comb_ready_for_mm_2022G2 <- subset(pass_comb_2022G2, select = c(actor, subject, actor_2, subject_2, rule_type, rule_time, date_period, Group)) 
+opp_comb_ready_for_mm_2022G2 <- subset(opp_comb_2022G2, select = c(actor, subject, actor_2,  subject_2, rule_type, rule_time, date_period, Group)) 
+pun_comb_ready_for_mm_2022G2 <- subset(pun_comb_2022G2, select = c(actor, subject, actor_2, subject_2, rule_type, rule_time, date_period, Group)) 
+
+
+
+
+#combine into one df for mixed model and make sure rule time is numeric
+rules.length.data.frame_MM_2022G2 <- rbind(retal_comb_ready_for_mm_2022G2, pile_comb_ready_for_mm_2022G2, pass_comb_ready_for_mm_2022G2, opp_comb_ready_for_mm_2022G2, pun_comb_ready_for_mm_2022G2)
+rules.length.data.frame_MM_2022G2$rule_time <- as.numeric(rules.length.data.frame_MM_2022G2$rule_time )
+
+
+#write.csv(rules.length.data.frame_MM_2022G2, "C:/Users/Xmanf/OneDrive/Desktop/Code for parakeet stuff/rules.length.data.frame_MM_2022G2")
+
+#mixed model
+obs_time_mod_2022G2 <- glmer(rule_time ~ rule_type  + (1 | date_period)  + (1|actor_2)   , data = rules.length.data.frame_MM_2022G2 , control = glmerControl(optimizer = "bobyqa", optCtrl = list(maxfun=2e5)), family = Gamma(link = "log"))
+summary(obs_time_mod_2022G2)
+
+
+#post hoc multiple comparisons
+posthoc_2022G2 <- summary(glht(obs_time_mod_2022G2, linfct = mcp(rule_type="Tukey")), test = adjusted("none"))
+ 
+
+confint_2022G2 <- round(confint(obs_time_mod_2022G2, method = "Wald", level = 0.95), 3)
+confint_2022G2
+
+tab_model(obs_time_mod_2022G2)
+
+
+
+
+glht()
+
+#EMD ret pile pass opp pun
+emd_ret_vs_pile_2022G2 <- emdist::emd(summary.pile_length_ready_density_no_count_reordered_mat_2022G2, summary.retal_length_ready_density_no_count_reordered_mat_2022G2)  
+emd_ret_vs_pile_2022G2
+#332.8338
+
+
+
+emd_ret_vs_pass_2022G2 <- emdist::emd(summary.pass_length_ready_density_no_count_reordered_mat_2022G2, summary.retal_length_ready_density_no_count_reordered_mat_2022G2)  
+emd_ret_vs_pass_2022G2
+#272.1652
+
+emd_ret_vs_opp_2022G2 <- emdist::emd(summary.opp_length_ready_density_no_count_reordered_mat_2022G2, summary.retal_length_ready_density_no_count_reordered_mat_2022G2)  
+emd_ret_vs_opp_2022G2
+#189.6072
+
+emd_ret_vs_pun_2022G2 <- emdist::emd(summary.pun_length_ready_density_no_count_reordered_mat_2022G2, summary.retal_length_ready_density_no_count_reordered_mat_2022G2)  
+emd_ret_vs_pun_2022G2
+#207.4364
+
+
+emd_pile_vs_pass_2022G2 <- emdist::emd(summary.pile_length_ready_density_no_count_reordered_mat_2022G2, summary.pass_length_ready_density_no_count_reordered_mat_2022G2)
+emd_pile_vs_pass_2022G2
+#568.425
+
+emd_pile_vs_opp_2022G2 <- emdist::emd(summary.pile_length_ready_density_no_count_reordered_mat_2022G2, summary.opp_length_ready_density_no_count_reordered_mat_2022G2)
+emd_pile_vs_opp_2022G2
+#327.5694
+
+emd_pile_vs_pun_2022G2 <- emdist::emd(summary.pile_length_ready_density_no_count_reordered_mat_2022G2, summary.pun_length_ready_density_no_count_reordered_mat_2022G2)
+emd_pile_vs_pun_2022G2
+#146.852
+
+emd_pass_vs_opp_2022G2 <- emdist::emd(summary.pass_length_ready_density_no_count_reordered_mat_2022G2, summary.opp_length_ready_density_no_count_reordered_mat_2022G2)
+emd_pass_vs_opp_2022G2
+#249.9139
+
+emd_pass_vs_pun_2022G2 <- emdist::emd(summary.pass_length_ready_density_no_count_reordered_mat_2022G2, summary.pun_length_ready_density_no_count_reordered_mat_2022G2)
+emd_pass_vs_pun_2022G2
+#423.9214
+
+emd_opp_vs_pun_2022G2 <- emdist::emd(summary.opp_length_ready_density_no_count_reordered_mat_2022G2, summary.pun_length_ready_density_no_count_reordered_mat_2022G2)
+emd_opp_vs_pun_2022G2
+#183.9188
+
+
+
+
+emd_2022G2_all <- c(emd_pass_vs_opp_2022G2, emd_pile_vs_opp_2022G2, emd_opp_vs_pun_2022G2,  emd_ret_vs_opp_2022G2, emd_pile_vs_pass_2022G2, emd_pass_vs_pun_2022G2, emd_ret_vs_pass_2022G2, emd_pile_vs_pun_2022G2, emd_ret_vs_pile_2022G2, emd_ret_vs_pun_2022G2)
+
+
+
+
+
+mean_rule_time_2022G2_summary <- rules.length.data.frame_MM_2022G2 %>% group_by(rule_type) %>%
+  dplyr::summarize (mean(rule_time))
+mean_rule_time_2022G2_summary
+```
+
+
+
+
+#time faceted plot
+```{r}
+####WHEN YOU DO THIS MAKE SURE P VALS ARE UPDATED HERE AND IN MANU
+
+#could use loop 
+
+#subset dfs to prepare for combining and plotting
+retal_time_comb_2021 <- subset(retal_length_ready_comb, select = c(time_to_retal, data_type))
+retal_time_comb_2022G1 <- subset(retal_length_ready_comb_2022G1, select = c(time_to_retal, data_type))
+retal_time_comb_2022G2 <- subset(retal_length_ready_comb_2022G2, select = c(time_to_retal, data_type))
+
+
+
+pile_time_comb_2021 <- subset(pile_length_ready_2021_comb, select = c(time_to_pile, data_type))
+pile_time_comb_2022G1 <- subset(pile_length_ready_2022G1_comb, select = c(time_to_pile, data_type))
+pile_time_comb_2022G2 <- subset(pile_length_ready_2022G2_comb, select = c(time_to_pile, data_type))
+
+
+
+
+pass_time_comb_2021 <- subset(pass_length_ready_comb, select = c(time_to_pass, data_type))
+pass_time_comb_2022G1 <- subset(pass_length_ready_comb_2022G1, select = c(time_to_pass, data_type))
+pass_time_comb_2022G2 <- subset(pass_length_ready_comb_2022G2, select = c(time_to_pass, data_type))
+
+
+
+opp_time_comb_2021 <- subset(opp_length_ready_2021_comb, select = c(time_to_opp, data_type))
+opp_time_comb_2022G1 <- subset(opp_length_ready_comb_2022G1, select = c(time_to_opp, data_type))
+opp_time_comb_2022G2 <- subset(opp_length_ready_comb_2022G2, select = c(time_to_opp, data_type))
+
+
+pun_time_comb_2021 <- subset(pun_length_ready_comb, select = c(time_to_pun, data_type))
+pun_time_comb_2022G1 <- subset(pun_length_ready_comb_2022G1, select = c(time_to_pun, data_type))
+pun_time_comb_2022G2 <- subset(pun_length_ready_comb_2022G2, select = c(time_to_pun, data_type))
+
+
+
+
+#make all column names consistent
+colnames(retal_time_comb_2021)[1] <- 'time_to_rule'
+colnames(retal_time_comb_2022G1)[1] <- 'time_to_rule'
+colnames(retal_time_comb_2022G2)[1] <- 'time_to_rule'
+colnames(pile_time_comb_2021)[1] <- 'time_to_rule'
+colnames(pile_time_comb_2022G1)[1] <- 'time_to_rule'
+colnames(pile_time_comb_2022G2)[1] <- 'time_to_rule'
+colnames(pass_time_comb_2021)[1] <- 'time_to_rule'
+colnames(pass_time_comb_2022G1)[1] <- 'time_to_rule'
+colnames(pass_time_comb_2022G2)[1] <- 'time_to_rule'
+colnames(opp_time_comb_2021)[1] <- 'time_to_rule'
+colnames(opp_time_comb_2022G1)[1] <- 'time_to_rule'
+colnames(opp_time_comb_2022G2)[1] <- 'time_to_rule'
+colnames(pun_time_comb_2021)[1] <- 'time_to_rule'
+colnames(pun_time_comb_2022G1)[1] <- 'time_to_rule'
+colnames(pun_time_comb_2022G2)[1] <- 'time_to_rule'
+
+
+
+
+# here
+
+
+
+#bind together into one df
+tdr_time_comb<- rbind(
+  cbind(retal_time_comb_2021, Group = "Retalialtion Group 1", groupid = "Group 1", rule = "Retaliation"),
+  cbind(retal_time_comb_2022G1, Group = "Retaliation Group 2", groupid = "Group 2", rule = "Retaliation"),
+  cbind(retal_time_comb_2022G2, Group = "Retaliation Group 3", groupid = "Group 3", rule = "Retaliation"),
+  cbind(pile_time_comb_2021, Group = "Pile-on Group 1", groupid = "Group 1", rule = "Pile-on"),  
+  cbind(pile_time_comb_2022G1, Group = "Pile-on Group 2", groupid = "Group 2", rule = "Pile-on"),
+  cbind(pile_time_comb_2022G2, Group = "Pile-on Group 3", groupid = "Group 3", rule = "Pile-on"),
+  cbind(pass_time_comb_2021, Group = "Pass-along Group 1", groupid = "Group 1", rule = "Pass-along"),
+  cbind(pass_time_comb_2022G1, Group = "Pass-along Group 2", groupid = "Group 2", rule = "Pass-along"),
+  cbind(pass_time_comb_2022G2, Group = "Pass-along Group 3", groupid = "Group 3", rule = "Pass-along"),
+  cbind(opp_time_comb_2021, Group = "Opportunism Group 1", groupid = "Group 1", rule = "Opportunism"),
+  cbind(opp_time_comb_2022G1, Group = "Opportunism Group 2", groupid = "Group 2", rule = "Opportunism"),
+  cbind(opp_time_comb_2022G2, Group = "Opportunism Group 3", groupid = "Group 3", rule = "Opportunism"),
+  cbind(pun_time_comb_2021, Group = "Punishment Group 1", groupid = "Group 1", rule = "Punishment"),
+  cbind(pun_time_comb_2022G1, Group = "Punishment Group 2", groupid = "Group 2", rule = "Punishment"),
+  cbind(pun_time_comb_2022G2, Group = "Punishment Group 3", groupid = "Group 3", rule = "Punishment")
+
+)
+
+
+
+#write.csv(tdr_time_comb, "C:/Users/Xmanf/Desktop/Ch1 TDR files/tdr_time_comb")
+
+
+
+
+#tdr_time_comb$Group <- factor(tdr_time_comb$Group, levels = c("Retalialtion Group 1", "Retaliation Group 2", "Retaliation Group 3", "Pile-on Group 1", "Pile-on Group 2", "Pile-on Group 3", "Pass-along Group 1", "Pass-along Group 2", "Pass-along Group 3", "Opportunism Group 1", "Opportunism Group 2", "Opportunism Group 3", "Punishment Group 1", "Punishment Group 2", "Punishment Group 3"))
+
+#store each rule as a factor in the particular order I would like them displayed in my plot
+custom_order <- c("Retalialtion Group 1", "Retaliation Group 2", "Retaliation Group 3", "Pile-on Group 1", "Pile-on Group 2", "Pile-on Group 3", "Pass-along Group 1", "Pass-along Group 2", "Pass-along Group 3", "Opportunism Group 1", "Opportunism Group 2", "Opportunism Group 3", "Punishment Group 1", "Punishment Group 2", "Punishment Group 3")
+
+# Convert group column to a factor with the desired order
+tdr_time_comb$Group <- factor(tdr_time_comb$Group, levels = custom_order)
+
+#row with NA from retal 2022G1. store and chop off so I can add p values
+row_with_na <- tdr_time_comb[apply(tdr_time_comb, 1, function(x) any(is.na(x))), ]
+
+#remove NAs
+tdr_time_comb <- na.omit(tdr_time_comb)
+
+
+
+
+
+#store p values in the particular order Id like to place on my faceted plots
+pval_time_df <- data.frame(
+  Group = custom_order,    # Match facet group names
+  label = c("p = 0.0506", "p = NA", "p = 0.813", "p < 0.001",
+            "p < 0.001", "p < 0.001", "p < 0.001", "p = 0.084",
+            "p = 0.002", "p < 0.001", "p = 0.023", "p < 0.001",
+            "p = 0.806", "p = 0.525", "p = 0.512"), # p values
+    # 90% of max count in each group to keep text inside
+    x_pos = max(tdr_time_comb$time_to_rule) * 0.9,  
+    # 90% of max density per group
+    y_pos = max(density(tdr_time_comb$time_to_rule)$y) * 0.9  
+)
+
+
+
+
+
+
+# Ensure pval_time_df respect the custom order
+pval_time_df$Group <- factor(pval_time_df$Group, levels = custom_order)
+
+#bind the neccessary na row back onto df
+tdr_time_comb <- rbind(tdr_time_comb, row_with_na)
+
+
+
+#faceted set of split violin plots that compares observed rule speed to random rule speed for each rule in each group
+tdr_time_plot <- ggplot(tdr_time_comb, aes(x = rule, y = time_to_rule, fill = data_type)) +
+  introdataviz::geom_split_violin(alpha= .9, trim = TRUE, show.legend = FALSE) +
+  geom_boxplot(width = .2, alpha = .2, fatten = 2, show.legend = FALSE, outlier.shape = NA) +
+  geom_text(data = pval_time_df, aes(x = Inf, y = Inf, label = label),
+                inherit.aes = FALSE,  
+  hjust = 1.5, vjust = 1.5, color = "black", size = 7, fontface = "bold") +  # Custom text in top-right
+  facet_wrap( ~ Group, scales = "free_x", ncol = 3, nrow = 5 ) +
+  theme_minimal() + 
+  theme(
+    strip.text = element_text(size = 20, face = "bold"),
+    axis.text = element_text(size = 20),  # Increase axis text size
+    axis.title = element_text(size = 20, face = "bold"),
+    axis.text.x = element_blank(),
+  axis.ticks.x = element_line(),
+    panel.spacing = unit(1, "lines"),# Y-axis tit
+    panel.border = element_rect(          # Add boxes around each plot
+      color = "black", fill = NA, linewidth = 1
+    )#,
+    #axis.text.x = element_blank(),  # Remove x-axis labels (since x is empty)
+    #axis.ticks.x = element_blank()   # Remove x-axis ticks
+  ) +
+scale_x_discrete(name = "Density") +  
+     coord_cartesian(ylim = c(0, 1000)) +
+  scale_y_continuous(name = "Speed of rule follows (s)",
+                     breaks = seq(0, 1000, 200) 
+                     ) + scale_fill_manual(values=c("red","gray"), name = "Data Type")
+  
+
+
+#18 by 20 either
+
+
+
+
+
+
+
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+#Richness and eveness plots for indiviudal rule use 2021
+```{r}
+richness_2021 <- c(retal_richness_2021, pile_richness_2021, pass_along_richness_2021, opp_richness_2021, punishment_richness_2021)
+
+rule_names <-c("Retaliation", "Pile-on", "Pass-along", "Opportunism","Punishment")
+
+richness_2021_df <- data.frame(rule_names, richness_2021)
+
+
+ggplot(richness_2021_df, aes(x=rule_names, y=richness_2021, fill=rule_names)) +
+         geom_bar(stat="identity")+theme_minimal() + scale_x_discrete(limits=c("Retaliation", "Pile-on", "Pass-along", "Opportunism","Punishment"))
+
+
+evenness_2021 <- c(retal_even_value_2021$PielouEven, pile_even_value_2021$PielouEven, pass_along_even_value_2021$PielouEven, opp_even_value_2021$PielouEven, punishment_even_value_2021$PielouEven)
+
+evenness_2021_df <- data.frame(rule_names, evenness_2021)
+
+ggplot(evenness_2021_df, aes(x=rule_names, y=evenness_2021, fill=rule_names)) +
+         geom_bar(stat="identity")+theme_minimal() + scale_x_discrete(limits=c("Retaliation", "Pile-on", "Pass-along", "Opportunism","Punishment"))
+
+```
+
+
+
+#Richness and eveness plots for indiviudal rule use 2022G1
+```{r}
+richness_2022G1 <- c(retal_richness_2022G1, pile_richness_2022G1, pass_along_richness_2022G1, opp_richness_2022G1, punishment_richness_2022G1)
+
+rule_names <-c("Retaliation", "Pile-on", "Pass-along", "Opportunism","Punishment")
+
+richness_2022G1_df <- data.frame(rule_names, richness_2022G1)
+
+
+ggplot(richness_2022G1_df, aes(x=rule_names, y=richness_2022G1, fill=rule_names)) +
+         geom_bar(stat="identity")+theme_minimal() + scale_x_discrete(limits=c("Retaliation", "Pile-on", "Pass-along", "Opportunism","Punishment"))
+
+
+evenness_2022G1 <- c(retal_even_value_2022G1$PielouEven, pile_even_value_2022G1$PielouEven, pass_along_even_value_2022G1$PielouEven, opp_even_value_2022G1$PielouEven, punishment_even_value_2022G1$PielouEven)
+
+evenness_2022G1_df <- data.frame(rule_names, evenness_2022G1)
+
+ggplot(evenness_2022G1_df, aes(x=rule_names, y=evenness_2022G1, fill=rule_names)) +
+         geom_bar(stat="identity")+theme_minimal() + scale_x_discrete(limits=c("Retaliation", "Pile-on", "Pass-along", "Opportunism","Punishment"))
+
+```
+
+
+
+#Richness and eveness plots for indiviudal rule use 2022G2
+```{r}
+richness_2022G2 <- c(retal_richness_2022G2, pile_richness_2022G2, pass_along_richness_2022G2, opp_richness_2022G2, punishment_richness_2022G2)
+
+rule_names <-c("Retaliation", "Pile-on", "Pass-along", "Opportunism","Punishment")
+
+richness_2022G2_df <- data.frame(rule_names, richness_2022G2)
+
+
+ggplot(richness_2022G2_df, aes(x=rule_names, y=richness_2022G2, fill=rule_names)) +
+         geom_bar(stat="identity")+theme_minimal() + scale_x_discrete(limits=c("Retaliation", "Pile-on", "Pass-along", "Opportunism","Punishment"))
+
+
+evenness_2022G2 <- c(retal_even_value_2022G2$PielouEven, pile_even_value_2022G2$PielouEven, pass_along_even_value_2022G2$PielouEven, opp_even_value_2022G2$PielouEven, punishment_even_value_2022G2$PielouEven)
+
+evenness_2022G2_df <- data.frame(rule_names, evenness_2022G2)
+
+ggplot(evenness_2022G2_df, aes(x=rule_names, y=evenness_2022G2, fill=rule_names)) +
+         geom_bar(stat="identity")+theme_minimal() + scale_x_discrete(limits=c("Retaliation", "Pile-on", "Pass-along", "Opportunism","Punishment"))
+
+```
